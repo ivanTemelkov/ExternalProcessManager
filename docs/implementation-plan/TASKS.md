@@ -29,6 +29,7 @@ This folder contains the implementation plan for IvTem.ExternalProcessManager v1
 | 16 | Build integration test helper executable | [016-test-helper-executable.md](tasks/016-test-helper-executable.md) |
 | 17 | Add logging coverage | [017-logging-coverage.md](tasks/017-logging-coverage.md) |
 | 18 | Run final analyzer and platform pass | [018-final-analyzer-platform-pass.md](tasks/018-final-analyzer-platform-pass.md) |
+| 19 | Add sample host application | [019-sample-host-application.md](tasks/019-sample-host-application.md) |
 
 ## Implementation Order
 
@@ -39,6 +40,7 @@ Implement tasks in order unless a task explicitly says it can be done independen
 3. Tasks 08-10: process launch, cleanup, and per-process supervision.
 4. Tasks 11-13: manager orchestration, hot reload, diagnostics, scheduled restart execution.
 5. Tasks 14-18: integration, lifecycle hardening, helper executable, logging, and final verification.
+6. Task 19: post-v1 runnable sample applications.
 
 ## Definition of v1 Complete
 

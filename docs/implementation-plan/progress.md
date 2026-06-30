@@ -30,6 +30,7 @@ Statuses:
 | 16 | Build integration test helper executable | Implemented | Helper supports deterministic exit, delayed exit, run-until-killed, child process, graceful CTRL+BREAK, and forced-cleanup modes. |
 | 17 | Add logging coverage | Implemented | Lifecycle, validation, restart, scheduled restart, hot-reload, and cleanup outcomes are logged through `ILogger`. |
 | 18 | Run final analyzer and platform pass | Implemented | Build/test/analyzer pass is clean; public surface and platform behavior reviewed. |
+| 19 | Add sample host application | Implemented | Adds runnable Generic Host and worker samples under `samples/`. |
 
 ## Progress Notes
 
@@ -173,3 +174,17 @@ YYYY-MM-DD:
 - Verification: `dotnet build IvTem.ExternalProcessManager.slnx` succeeded with 0 warnings and 0 errors; `dotnet test IvTem.ExternalProcessManager.slnx` succeeded with 101 passing tests; public API scan shows only `ExternalProcessManagerSnapshot`, `ExternalProcessSnapshot`, `ExternalProcessStatus`, `ExternalProcessValidationError`, `IExternalProcessManager`, and `ServiceCollectionExtensions`; suppression scan found no production suppressions; direct sink scan found no `Console`, `File`, `EventLog`, telemetry, or trace usage in the library.
 - Follow-up: v1 implementation tasks are complete.
 - Memory: Added decision for explicit runtime platform guards at Windows process launch and cleanup boundaries.
+
+2026-06-30:
+- Task: 19 - Add sample host application.
+- Change: Added the planned task to `TASKS.md` and created `tasks/019-sample-host-application.md` with implementation steps, done criteria, and verification commands.
+- Verification: Documentation-only change; no build or test run.
+- Follow-up: Implement Task 19.
+- Memory: Added decision for self-contained sample apps with sample-host-owned worker path configuration.
+
+2026-06-30:
+- Task: 19 - Add sample host application.
+- Change: Added `IvTem.ExternalProcessManager.SampleHost` and `IvTem.ExternalProcessManager.SampleWorker` under `samples/`; the host uses `Host.CreateApplicationBuilder`, registers `AddExternalProcessManager`, loads `appsettings.json`, layers worker path and argument-list overrides in memory, logs diagnostics snapshots through a background service, exits clearly on non-Windows, and supports `SampleHost:RunSeconds` for finite smoke tests.
+- Verification: `dotnet build IvTem.ExternalProcessManager.slnx` succeeded with 0 warnings and 0 errors; `dotnet test IvTem.ExternalProcessManager.slnx` succeeded with 101 passing tests; `dotnet run --project samples/IvTem.ExternalProcessManager.SampleHost -- --SampleHost:RunSeconds=8` started the sample worker, logged `Running` diagnostics with process ID, restart count, and next scheduled restart, then stopped the worker with graceful CTRL+BREAK cleanup.
+- Follow-up: None currently.
+- Memory: Added decision for resolving the sample worker from the host output folder so `dotnet run --project samples/IvTem.ExternalProcessManager.SampleHost` works from the repository root.

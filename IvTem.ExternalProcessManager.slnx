@@ -2,6 +2,10 @@
   <Folder Name="/src/">
     <Project Path="src/IvTem.ExternalProcessManager/IvTem.ExternalProcessManager.csproj" />
   </Folder>
+  <Folder Name="/samples/">
+    <Project Path="samples/IvTem.ExternalProcessManager.SampleHost/IvTem.ExternalProcessManager.SampleHost.csproj" />
+    <Project Path="samples/IvTem.ExternalProcessManager.SampleWorker/IvTem.ExternalProcessManager.SampleWorker.csproj" />
+  </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/IvTem.ExternalProcessManager.TestProcess/IvTem.ExternalProcessManager.TestProcess.csproj" />
     <Project Path="tests/IvTem.ExternalProcessManager.Tests/IvTem.ExternalProcessManager.Tests.csproj" />

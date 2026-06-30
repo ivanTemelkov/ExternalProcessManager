@@ -213,6 +213,16 @@ YYYY-MM-DD:
 - Reason: v1 is Windows-only, and unsupported OS behavior should fail fast with a clear `PlatformNotSupportedException` before reaching Windows P/Invoke or process-control APIs.
 - Alternatives considered: Relying on documented Windows-only support and eventual interop failures; rejected because Task 18 requires explicit platform behavior. Guarding service registration; rejected because hosts can still construct diagnostics-only service graphs on non-Windows and only process-control operations require Windows.
 
+2026-06-30:
+- Decision: Task 19 sample applications should be self-contained under `samples/`, with a Generic Host sample supervising a sample worker and the sample host layering the worker path into configuration at startup.
+- Reason: The sample should demonstrate the real public host integration API while remaining runnable from the repository without hard-coded machine paths or dependency on test-only executables.
+- Alternatives considered: Reusing `IvTem.ExternalProcessManager.TestProcess`; rejected because it is test infrastructure rather than a public usage sample. Shipping only placeholder configuration; rejected because the sample would not be runnable out of the box.
+
+2026-06-30:
+- Decision: The sample host sets its content root to `AppContext.BaseDirectory`, copies `appsettings.json` to output, and resolves the sample worker from the sibling worker project's output using the host build configuration.
+- Reason: `dotnet run --project samples/IvTem.ExternalProcessManager.SampleHost` can be launched from the repository root, so relying on the current directory would make sample configuration and worker discovery brittle.
+- Alternatives considered: Hard-coding source-tree paths; rejected because it would not survive different repository locations. Copying the worker into the host output; rejected because a sibling project reference and deterministic output lookup keep the sample simpler while still building the worker automatically.
+
 ## Debugging Notes
 
 Record repeatable commands, flaky test notes, and process-control observations.
