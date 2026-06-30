@@ -3,7 +3,7 @@ namespace IvTem.ExternalProcessManager;
 /// <summary>
 /// Controls the lifecycle of configured external processes and exposes diagnostics snapshots.
 /// </summary>
-public interface IExternalProcessManager
+public interface IExternalProcessManager : IAsyncDisposable
 {
     /// <summary>
     /// Starts supervision for all valid configured processes.

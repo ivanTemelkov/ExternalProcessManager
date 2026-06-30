@@ -126,24 +126,73 @@ internal sealed class ExternalProcessManager : IExternalProcessManager, IDisposa
     }
 
     public void Dispose()
+        => Dispose(disposingAsync: false)
+            .AsTask()
+            .GetAwaiter()
+            .GetResult();
+
+    public async ValueTask DisposeAsync()
+        => await Dispose(disposingAsync: true)
+            .ConfigureAwait(continueOnCapturedContext: false);
+
+    private async ValueTask Dispose(bool disposingAsync)
     {
         if (IsDisposed)
             return;
 
-        IsDisposed = true;
-        ConfigurationChangeRegistration?.Dispose();
+        ImmutableArray<ManagedProcessEntry> entries;
 
-        foreach (ManagedProcessEntry entry in GetSupervisorEntries())
+        await ReconciliationLock.WaitAsync()
+            .ConfigureAwait(continueOnCapturedContext: false);
+
+        try
         {
-            entry.Supervisor.Dispose();
+            if (IsDisposed)
+                return;
+
+            IsDisposed = true;
+            IsRunning = false;
+            ConfigurationChangeRegistration?.Dispose();
+            ConfigurationChangeRegistration = null;
+            entries = GetSupervisorEntries();
         }
+        finally
+        {
+            ReconciliationLock.Release();
+        }
+
+        await StopAndDisposeEntries(entries, disposingAsync)
+            .ConfigureAwait(continueOnCapturedContext: false);
 
         lock (SnapshotLock)
         {
             Supervisors.Clear();
             RefreshSnapshotCore();
         }
+
         ReconciliationLock.Dispose();
+    }
+
+    private static async ValueTask StopAndDisposeEntries(
+        ImmutableArray<ManagedProcessEntry> entries,
+        bool disposingAsync)
+    {
+        foreach (ManagedProcessEntry entry in entries)
+        {
+            if (disposingAsync)
+            {
+                await entry.Supervisor.Stop(CancellationToken.None)
+                    .ConfigureAwait(continueOnCapturedContext: false);
+            }
+            else
+            {
+                entry.Supervisor.Stop(CancellationToken.None)
+                    .GetAwaiter()
+                    .GetResult();
+            }
+
+            entry.Supervisor.Dispose();
+        }
     }
 
     private void SubscribeToConfigurationChanges()

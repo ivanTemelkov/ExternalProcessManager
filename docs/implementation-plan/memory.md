@@ -193,6 +193,11 @@ YYYY-MM-DD:
 - Reason: Generic Host can own lifecycle without changing the manual manager API, and repeated calls to `AddExternalProcessManager` do not add duplicate hosted-service adapters or managers.
 - Alternatives considered: Making `ExternalProcessManager` implement `IHostedService` directly; rejected because it would mix public manual lifecycle concerns with host lifecycle plumbing.
 
+2026-06-30:
+- Decision: `IExternalProcessManager` extends `IAsyncDisposable`, while the internal manager also keeps synchronous `IDisposable`; both disposal paths stop retained supervisors before disposing them.
+- Reason: Manual users and DI containers need a deterministic cleanup path that does not rely on the hosted-service adapter being called first, and disposal must not leave managed child processes running.
+- Alternatives considered: Keeping only synchronous `IDisposable`; rejected because graceful process cleanup is asynchronous. Keeping disposal as handle-only cleanup; rejected because it bypassed the supervised stop path.
+
 ## Debugging Notes
 
 Record repeatable commands, flaky test notes, and process-control observations.

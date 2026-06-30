@@ -93,6 +93,45 @@ public sealed class PublicContractsTests
     }
 
     [Fact]
+    public async Task ManualDisposeStopsManagedProcesses()
+    {
+        if (OperatingSystem.IsWindows() == false)
+            return;
+
+        using TemporaryFile readyFile = TemporaryFile.Create();
+        using TemporaryFile stoppedFile = TemporaryFile.Create();
+        Dictionary<string, string?> values = new(StringComparer.Ordinal)
+        {
+            ["ExternalProcessManager:Processes:0:Alias"] = "worker-a",
+            ["ExternalProcessManager:Processes:0:FileName"] = TestProcessPath.Resolve(),
+            ["ExternalProcessManager:Processes:0:ArgumentList:0"] = "handle-ctrl-break",
+            ["ExternalProcessManager:Processes:0:ArgumentList:1"] = "--ready-file",
+            ["ExternalProcessManager:Processes:0:ArgumentList:2"] = readyFile.Path,
+            ["ExternalProcessManager:Processes:0:ArgumentList:3"] = "--stopped-file",
+            ["ExternalProcessManager:Processes:0:ArgumentList:4"] = stoppedFile.Path,
+        };
+        IConfiguration configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(values)
+            .Build();
+        ServiceCollection services = new();
+
+        services.AddExternalProcessManager(configuration.GetSection("ExternalProcessManager"));
+
+        await using ServiceProvider provider = services.BuildServiceProvider();
+        IExternalProcessManager manager = provider.GetRequiredService<IExternalProcessManager>();
+
+        await manager.StartAsync();
+        await readyFile.WaitUntilExists();
+
+        ExternalProcessSnapshot runningProcess = Assert.Single(manager.GetSnapshot().Processes);
+        Assert.Equal(ExternalProcessStatus.Running, runningProcess.Status);
+
+        await manager.DisposeAsync();
+
+        await stoppedFile.WaitUntilExists();
+    }
+
+    [Fact]
     public void SnapshotRecordsCanBeConstructed()
     {
         ExternalProcessValidationError validationError = new()

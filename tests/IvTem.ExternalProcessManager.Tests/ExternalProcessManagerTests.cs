@@ -38,6 +38,22 @@ public sealed class ExternalProcessManagerTests
     }
 
     [Fact]
+    public async Task StartIsIdempotent()
+    {
+        TestConfigurationSource source = new(CreateConfiguration(("worker-a", "worker-a.exe")));
+        IConfigurationRoot configuration = BuildConfiguration(source);
+        FakeSupervisorFactory supervisorFactory = new();
+        using ExternalProcessManager manager = CreateManager(configuration, supervisorFactory);
+
+        await manager.StartAsync();
+        await manager.StartAsync();
+
+        FakeSupervisor supervisor = Assert.Single(supervisorFactory.Supervisors);
+        Assert.Equal(1, supervisor.StartCount);
+        Assert.Equal(ExternalProcessStatus.Running, manager.GetSnapshot().Processes[0].Status);
+    }
+
+    [Fact]
     public async Task StopKeepsStoppedProcessDiagnostics()
     {
         TestConfigurationSource source = new(CreateConfiguration(("worker-a", "worker-a.exe")));
@@ -56,6 +72,23 @@ public sealed class ExternalProcessManagerTests
     }
 
     [Fact]
+    public async Task StopIsIdempotent()
+    {
+        TestConfigurationSource source = new(CreateConfiguration(("worker-a", "worker-a.exe")));
+        IConfigurationRoot configuration = BuildConfiguration(source);
+        FakeSupervisorFactory supervisorFactory = new();
+        using ExternalProcessManager manager = CreateManager(configuration, supervisorFactory);
+        await manager.StartAsync();
+
+        await manager.StopAsync();
+        await manager.StopAsync();
+
+        FakeSupervisor supervisor = Assert.Single(supervisorFactory.Supervisors);
+        Assert.Equal(1, supervisor.StopCount);
+        Assert.Equal(ExternalProcessStatus.Stopped, manager.GetSnapshot().Processes[0].Status);
+    }
+
+    [Fact]
     public async Task StartAfterStopStartsExistingSupervisors()
     {
         TestConfigurationSource source = new(CreateConfiguration(("worker-a", "worker-a.exe")));
@@ -71,6 +104,38 @@ public sealed class ExternalProcessManagerTests
         Assert.Single(supervisorFactory.Supervisors);
         Assert.Equal(2, supervisor.StartCount);
         Assert.Equal(ExternalProcessStatus.Running, manager.GetSnapshot().Processes[0].Status);
+    }
+
+    [Fact]
+    public async Task DisposeStopsAndDisposesRunningSupervisors()
+    {
+        TestConfigurationSource source = new(CreateConfiguration(("worker-a", "worker-a.exe")));
+        IConfigurationRoot configuration = BuildConfiguration(source);
+        FakeSupervisorFactory supervisorFactory = new();
+        ExternalProcessManager manager = CreateManager(configuration, supervisorFactory);
+        await manager.StartAsync();
+        FakeSupervisor supervisor = Assert.Single(supervisorFactory.Supervisors);
+
+        manager.Dispose();
+
+        Assert.Equal(1, supervisor.StopCount);
+        Assert.True(supervisor.IsDisposed);
+    }
+
+    [Fact]
+    public async Task DisposeAsyncStopsAndDisposesRunningSupervisors()
+    {
+        TestConfigurationSource source = new(CreateConfiguration(("worker-a", "worker-a.exe")));
+        IConfigurationRoot configuration = BuildConfiguration(source);
+        FakeSupervisorFactory supervisorFactory = new();
+        ExternalProcessManager manager = CreateManager(configuration, supervisorFactory);
+        await manager.StartAsync();
+        FakeSupervisor supervisor = Assert.Single(supervisorFactory.Supervisors);
+
+        await manager.DisposeAsync();
+
+        Assert.Equal(1, supervisor.StopCount);
+        Assert.True(supervisor.IsDisposed);
     }
 
     [Fact]
