@@ -2,10 +2,11 @@ using System.Collections.Immutable;
 using System.ComponentModel;
 using IvTem.ExternalProcessManager.Configuration;
 using IvTem.ExternalProcessManager.Scheduling;
+using Microsoft.Extensions.Logging;
 
 namespace IvTem.ExternalProcessManager.Lifecycle;
 
-internal sealed class ExternalProcessSupervisor : IExternalProcessSupervisor
+internal sealed partial class ExternalProcessSupervisor : IExternalProcessSupervisor
 {
     public ExternalProcessSupervisor(
         EffectiveExternalProcessConfiguration configuration,
@@ -13,7 +14,8 @@ internal sealed class ExternalProcessSupervisor : IExternalProcessSupervisor
         IProcessCleanup cleanup,
         IRestartDelay restartDelay,
         ILocalClock clock,
-        IScheduledRestartTimerFactory scheduledRestartTimerFactory)
+        IScheduledRestartTimerFactory scheduledRestartTimerFactory,
+        ILogger<ExternalProcessSupervisor> logger)
     {
         ArgumentNullException.ThrowIfNull(configuration);
         ArgumentNullException.ThrowIfNull(launcher);
@@ -21,12 +23,14 @@ internal sealed class ExternalProcessSupervisor : IExternalProcessSupervisor
         ArgumentNullException.ThrowIfNull(restartDelay);
         ArgumentNullException.ThrowIfNull(clock);
         ArgumentNullException.ThrowIfNull(scheduledRestartTimerFactory);
+        ArgumentNullException.ThrowIfNull(logger);
 
         Configuration = configuration;
         Launcher = launcher;
         Cleanup = cleanup;
         RestartDelay = restartDelay;
         Clock = clock;
+        Logger = logger;
         ScheduledRestartTimer = scheduledRestartTimerFactory.Create(ExecuteScheduledRestart);
         ScheduledRestartCalculator = new ScheduledRestartCalculator(clock.TimeZone);
         BackoffState = new RestartBackoffState(configuration.Restart);
@@ -43,6 +47,8 @@ internal sealed class ExternalProcessSupervisor : IExternalProcessSupervisor
     private IRestartDelay RestartDelay { get; }
 
     private ILocalClock Clock { get; }
+
+    private ILogger<ExternalProcessSupervisor> Logger { get; }
 
     private IScheduledRestartTimer ScheduledRestartTimer { get; }
 
@@ -97,6 +103,7 @@ internal sealed class ExternalProcessSupervisor : IExternalProcessSupervisor
             CurrentHandle = null;
             BackoffState.Reset();
             Version++;
+            LogProcessStarting(Logger, Configuration.Alias);
             LaunchForCurrentVersion();
             ScheduleNextRestart();
         }
@@ -123,11 +130,13 @@ internal sealed class ExternalProcessSupervisor : IExternalProcessSupervisor
             if (CurrentHandle is null)
             {
                 SetStatus(ExternalProcessStatus.Stopped);
+                LogProcessStoppedWithoutHandle(Logger, Configuration.Alias);
                 return;
             }
 
             IProcessHandle handle = CurrentHandle;
             SetStatus(ExternalProcessStatus.Stopping);
+            LogProcessStopping(Logger, Configuration.Alias, handle.ProcessId);
 
             ProcessCleanupResult result;
 
@@ -151,6 +160,7 @@ internal sealed class ExternalProcessSupervisor : IExternalProcessSupervisor
             BackoffState.Reset();
             handle.Dispose();
             ApplyStoppedResult(result);
+            LogProcessStopped(Logger, Configuration.Alias, result.ProcessId, result.Outcome, result.ExitCode);
         }
         finally
         {
@@ -182,12 +192,14 @@ internal sealed class ExternalProcessSupervisor : IExternalProcessSupervisor
             IProcessHandle handle = Launcher.Launch(Configuration);
             CurrentHandle = handle;
             SetRunningSnapshot(handle);
+            LogProcessStarted(Logger, Configuration.Alias, handle.ProcessId);
             _ = ObserveExit(handle, launchVersion);
         }
         catch (Exception exception) when (exception is InvalidOperationException or Win32Exception or ObjectDisposedException)
         {
             CurrentHandle = null;
             SetFaultedSnapshot(exception.Message);
+            LogProcessLaunchFailed(Logger, exception, Configuration.Alias);
         }
     }
 
@@ -234,6 +246,7 @@ internal sealed class ExternalProcessSupervisor : IExternalProcessSupervisor
 
             CurrentHandle = null;
             handle.Dispose();
+            LogProcessExited(Logger, Configuration.Alias, exit.ExitCode);
 
             if (ShouldRestart(exit.ExitCode))
             {
@@ -241,12 +254,14 @@ internal sealed class ExternalProcessSupervisor : IExternalProcessSupervisor
                 Version++;
                 restartVersion = Version;
                 ApplyRestartPendingResult(exit);
+                LogRestartScheduled(Logger, Configuration.Alias, Configuration.Restart.Mode, delay.Value);
             }
             else
             {
                 BackoffState.ResetIfStableRuntimeObserved(handle.StartedAt, exit.ExitedAt);
                 ApplyExitedResult(exit, ExternalProcessStatus.Stopped);
                 ScheduleNextRestart();
+                LogRestartSkipped(Logger, Configuration.Alias, Configuration.Restart.Mode, exit.ExitCode);
             }
         }
         finally
@@ -279,6 +294,7 @@ internal sealed class ExternalProcessSupervisor : IExternalProcessSupervisor
             if (Version != restartVersion || CurrentHandle is not null || Status != ExternalProcessStatus.RestartPending)
                 return;
 
+            LogRestartingAfterBackoff(Logger, Configuration.Alias);
             LaunchForCurrentVersion();
             ScheduleNextRestart();
         }
@@ -308,11 +324,13 @@ internal sealed class ExternalProcessSupervisor : IExternalProcessSupervisor
             if (ScheduledRestartDueTime.Value > Clock.Now)
             {
                 ScheduledRestartTimer.Schedule(ScheduledRestartDueTime.Value);
+                LogScheduledRestartDeferred(Logger, Configuration.Alias, ScheduledRestartDueTime.Value);
                 return;
             }
 
             ScheduledRestartDueTime = null;
             Version++;
+            LogScheduledRestartExecuting(Logger, Configuration.Alias);
 
             if (CurrentHandle is null || CurrentHandle.Exited.IsCompleted)
             {
@@ -322,6 +340,7 @@ internal sealed class ExternalProcessSupervisor : IExternalProcessSupervisor
                 IncrementRestartCount();
                 LaunchForCurrentVersion();
                 ScheduleNextRestart();
+                LogScheduledRestartStartedStoppedProcess(Logger, Configuration.Alias);
                 return;
             }
 
@@ -338,6 +357,7 @@ internal sealed class ExternalProcessSupervisor : IExternalProcessSupervisor
             BackoffState.Reset();
             handle.Dispose();
             ApplyScheduledRestartResult(result);
+            LogScheduledRestartStoppedProcess(Logger, Configuration.Alias, result.ProcessId, result.Outcome, result.ExitCode);
             LaunchForCurrentVersion();
             ScheduleNextRestart();
         }
@@ -356,9 +376,14 @@ internal sealed class ExternalProcessSupervisor : IExternalProcessSupervisor
         ScheduledRestartDueTime = dueTime;
 
         if (dueTime.HasValue)
+        {
             ScheduledRestartTimer.Schedule(dueTime.Value);
+            LogScheduledRestartScheduled(Logger, Configuration.Alias, dueTime.Value);
+        }
         else
+        {
             ScheduledRestartTimer.Cancel();
+        }
     }
 
     private void CancelScheduledRestart()
@@ -515,4 +540,49 @@ internal sealed class ExternalProcessSupervisor : IExternalProcessSupervisor
             EffectiveProcessArgumentMode.RawString when string.IsNullOrWhiteSpace(configuration.Arguments) == false => [configuration.Arguments],
             _ => [],
         };
+
+    [LoggerMessage(EventId = 2000, Level = LogLevel.Information, Message = "Starting external process {Alias}.")]
+    private static partial void LogProcessStarting(ILogger logger, string alias);
+
+    [LoggerMessage(EventId = 2001, Level = LogLevel.Information, Message = "External process {Alias} started with process ID {ProcessId}.")]
+    private static partial void LogProcessStarted(ILogger logger, string alias, int processId);
+
+    [LoggerMessage(EventId = 2002, Level = LogLevel.Error, Message = "External process {Alias} failed to start.")]
+    private static partial void LogProcessLaunchFailed(ILogger logger, Exception exception, string alias);
+
+    [LoggerMessage(EventId = 2003, Level = LogLevel.Information, Message = "Stopping external process {Alias} with process ID {ProcessId}.")]
+    private static partial void LogProcessStopping(ILogger logger, string alias, int processId);
+
+    [LoggerMessage(EventId = 2004, Level = LogLevel.Information, Message = "External process {Alias} stopped with process ID {ProcessId}, cleanup outcome {Outcome}, and exit code {ExitCode}.")]
+    private static partial void LogProcessStopped(ILogger logger, string alias, int processId, ProcessCleanupOutcome outcome, int? exitCode);
+
+    [LoggerMessage(EventId = 2005, Level = LogLevel.Information, Message = "External process {Alias} stop requested with no current process handle.")]
+    private static partial void LogProcessStoppedWithoutHandle(ILogger logger, string alias);
+
+    [LoggerMessage(EventId = 2006, Level = LogLevel.Information, Message = "External process {Alias} exited with exit code {ExitCode}.")]
+    private static partial void LogProcessExited(ILogger logger, string alias, int? exitCode);
+
+    [LoggerMessage(EventId = 2007, Level = LogLevel.Information, Message = "External process {Alias} restart scheduled by mode {RestartMode} after delay {Delay}.")]
+    private static partial void LogRestartScheduled(ILogger logger, string alias, ExternalProcessRestartMode restartMode, TimeSpan delay);
+
+    [LoggerMessage(EventId = 2008, Level = LogLevel.Information, Message = "External process {Alias} restart skipped by mode {RestartMode} after exit code {ExitCode}.")]
+    private static partial void LogRestartSkipped(ILogger logger, string alias, ExternalProcessRestartMode restartMode, int? exitCode);
+
+    [LoggerMessage(EventId = 2009, Level = LogLevel.Information, Message = "External process {Alias} is restarting after backoff delay.")]
+    private static partial void LogRestartingAfterBackoff(ILogger logger, string alias);
+
+    [LoggerMessage(EventId = 2010, Level = LogLevel.Information, Message = "Scheduled restart for external process {Alias} is executing.")]
+    private static partial void LogScheduledRestartExecuting(ILogger logger, string alias);
+
+    [LoggerMessage(EventId = 2011, Level = LogLevel.Information, Message = "Scheduled restart for external process {Alias} stopped process ID {ProcessId} with cleanup outcome {Outcome} and exit code {ExitCode}.")]
+    private static partial void LogScheduledRestartStoppedProcess(ILogger logger, string alias, int processId, ProcessCleanupOutcome outcome, int? exitCode);
+
+    [LoggerMessage(EventId = 2012, Level = LogLevel.Information, Message = "Scheduled restart for external process {Alias} started a stopped process.")]
+    private static partial void LogScheduledRestartStartedStoppedProcess(ILogger logger, string alias);
+
+    [LoggerMessage(EventId = 2013, Level = LogLevel.Information, Message = "Scheduled restart for external process {Alias} scheduled at {DueTime}.")]
+    private static partial void LogScheduledRestartScheduled(ILogger logger, string alias, DateTimeOffset dueTime);
+
+    [LoggerMessage(EventId = 2014, Level = LogLevel.Information, Message = "Scheduled restart for external process {Alias} deferred until {DueTime}.")]
+    private static partial void LogScheduledRestartDeferred(ILogger logger, string alias, DateTimeOffset dueTime);
 }

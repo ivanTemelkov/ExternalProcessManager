@@ -1,27 +1,31 @@
 using System.Collections.Immutable;
 using IvTem.ExternalProcessManager.Configuration;
 using IvTem.ExternalProcessManager.Lifecycle;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Primitives;
 
 namespace IvTem.ExternalProcessManager;
 
-internal sealed class ExternalProcessManager : IExternalProcessManager, IDisposable
+internal sealed partial class ExternalProcessManager : IExternalProcessManager, IDisposable
 {
     public ExternalProcessManager(
         ExternalProcessManagerConfigurationSource configurationSource,
         ExternalProcessConfigurationReader configurationReader,
         ExternalProcessConfigurationValidator configurationValidator,
-        IExternalProcessSupervisorFactory supervisorFactory)
+        IExternalProcessSupervisorFactory supervisorFactory,
+        ILogger<ExternalProcessManager> logger)
     {
         ArgumentNullException.ThrowIfNull(configurationSource);
         ArgumentNullException.ThrowIfNull(configurationReader);
         ArgumentNullException.ThrowIfNull(configurationValidator);
         ArgumentNullException.ThrowIfNull(supervisorFactory);
+        ArgumentNullException.ThrowIfNull(logger);
 
         ConfigurationSource = configurationSource;
         ConfigurationReader = configurationReader;
         ConfigurationValidator = configurationValidator;
         SupervisorFactory = supervisorFactory;
+        Logger = logger;
         Snapshot = CreateSnapshot(isRunning: false, processes: [], validationErrors: []);
     }
 
@@ -32,6 +36,8 @@ internal sealed class ExternalProcessManager : IExternalProcessManager, IDisposa
     private ExternalProcessConfigurationValidator ConfigurationValidator { get; }
 
     private IExternalProcessSupervisorFactory SupervisorFactory { get; }
+
+    private ILogger<ExternalProcessManager> Logger { get; }
 
     private SemaphoreSlim ReconciliationLock { get; } = new(1, 1);
 
@@ -67,11 +73,14 @@ internal sealed class ExternalProcessManager : IExternalProcessManager, IDisposa
 
             IsRunning = true;
             SubscribeToConfigurationChanges();
+            LogManagerStarting(Logger);
 
             EffectiveExternalProcessManagerConfiguration configuration = ReadConfiguration();
 
             await ApplyConfiguration(configuration, startExistingSupervisors: true, cancellationToken)
                 .ConfigureAwait(continueOnCapturedContext: false);
+
+            LogManagerStarted(Logger, configuration.Processes.Length, configuration.ValidationErrors.Length);
         }
         finally
         {
@@ -99,6 +108,7 @@ internal sealed class ExternalProcessManager : IExternalProcessManager, IDisposa
             IsRunning = false;
             ConfigurationChangeRegistration?.Dispose();
             ConfigurationChangeRegistration = null;
+            LogManagerStopping(Logger, Supervisors.Count);
 
             foreach (ManagedProcessEntry entry in GetSupervisorEntries())
             {
@@ -109,6 +119,7 @@ internal sealed class ExternalProcessManager : IExternalProcessManager, IDisposa
             }
 
             RefreshSnapshot();
+            LogManagerStopped(Logger);
         }
         finally
         {
@@ -223,10 +234,13 @@ internal sealed class ExternalProcessManager : IExternalProcessManager, IDisposa
             if (IsDisposed || IsRunning == false)
                 return;
 
+            LogConfigurationReloadDetected(Logger);
             EffectiveExternalProcessManagerConfiguration configuration = ReadConfiguration();
 
             await ApplyConfiguration(configuration, startExistingSupervisors: false, CancellationToken.None)
                 .ConfigureAwait(continueOnCapturedContext: false);
+
+            LogConfigurationReloadApplied(Logger, configuration.Processes.Length, configuration.ValidationErrors.Length);
         }
         finally
         {
@@ -235,7 +249,13 @@ internal sealed class ExternalProcessManager : IExternalProcessManager, IDisposa
     }
 
     private EffectiveExternalProcessManagerConfiguration ReadConfiguration()
-        => ConfigurationValidator.Validate(ConfigurationReader.Read(ConfigurationSource.Section));
+    {
+        EffectiveExternalProcessManagerConfiguration configuration =
+            ConfigurationValidator.Validate(ConfigurationReader.Read(ConfigurationSource.Section));
+
+        LogValidationErrors(configuration.ValidationErrors);
+        return configuration;
+    }
 
     private async Task ApplyConfiguration(
         EffectiveExternalProcessManagerConfiguration configuration,
@@ -275,6 +295,7 @@ internal sealed class ExternalProcessManager : IExternalProcessManager, IDisposa
             {
                 if (startExistingSupervisor)
                 {
+                    LogStartingExistingProcess(Logger, configuration.Alias);
                     await existingEntry.Supervisor.Start(cancellationToken)
                         .ConfigureAwait(continueOnCapturedContext: false);
                 }
@@ -282,6 +303,7 @@ internal sealed class ExternalProcessManager : IExternalProcessManager, IDisposa
                 return;
             }
 
+            LogReplacingProcess(Logger, configuration.Alias);
             await existingEntry.Supervisor.Stop(cancellationToken)
                 .ConfigureAwait(continueOnCapturedContext: false);
 
@@ -289,6 +311,7 @@ internal sealed class ExternalProcessManager : IExternalProcessManager, IDisposa
         }
 
         IExternalProcessSupervisor supervisor = SupervisorFactory.Create(configuration);
+        LogAddingProcess(Logger, configuration.Alias);
 
         lock (SnapshotLock)
         {
@@ -310,6 +333,7 @@ internal sealed class ExternalProcessManager : IExternalProcessManager, IDisposa
                 return;
         }
 
+        LogRemovingProcess(Logger, alias);
         await entry.Supervisor.Stop(cancellationToken)
             .ConfigureAwait(continueOnCapturedContext: false);
 
@@ -534,6 +558,50 @@ internal sealed class ExternalProcessManager : IExternalProcessManager, IDisposa
 
         return true;
     }
+
+    private void LogValidationErrors(ImmutableArray<ExternalProcessValidationError> validationErrors)
+    {
+        foreach (ExternalProcessValidationError validationError in validationErrors)
+        {
+            LogValidationError(
+                Logger,
+                validationError.Path,
+                validationError.Message);
+        }
+    }
+
+    [LoggerMessage(EventId = 1000, Level = LogLevel.Information, Message = "External process manager is starting.")]
+    private static partial void LogManagerStarting(ILogger logger);
+
+    [LoggerMessage(EventId = 1001, Level = LogLevel.Information, Message = "External process manager started with {ProcessCount} valid process definitions and {ValidationErrorCount} validation errors.")]
+    private static partial void LogManagerStarted(ILogger logger, int processCount, int validationErrorCount);
+
+    [LoggerMessage(EventId = 1002, Level = LogLevel.Information, Message = "External process manager is stopping {ProcessCount} supervised processes.")]
+    private static partial void LogManagerStopping(ILogger logger, int processCount);
+
+    [LoggerMessage(EventId = 1003, Level = LogLevel.Information, Message = "External process manager stopped.")]
+    private static partial void LogManagerStopped(ILogger logger);
+
+    [LoggerMessage(EventId = 1004, Level = LogLevel.Information, Message = "External process manager configuration reload detected.")]
+    private static partial void LogConfigurationReloadDetected(ILogger logger);
+
+    [LoggerMessage(EventId = 1005, Level = LogLevel.Information, Message = "External process manager configuration reload applied with {ProcessCount} valid process definitions and {ValidationErrorCount} validation errors.")]
+    private static partial void LogConfigurationReloadApplied(ILogger logger, int processCount, int validationErrorCount);
+
+    [LoggerMessage(EventId = 1006, Level = LogLevel.Warning, Message = "External process configuration validation error at {Path}: {Message}")]
+    private static partial void LogValidationError(ILogger logger, string path, string message);
+
+    [LoggerMessage(EventId = 1007, Level = LogLevel.Information, Message = "Starting existing external process supervisor for alias {Alias}.")]
+    private static partial void LogStartingExistingProcess(ILogger logger, string alias);
+
+    [LoggerMessage(EventId = 1008, Level = LogLevel.Information, Message = "Replacing external process supervisor for alias {Alias}.")]
+    private static partial void LogReplacingProcess(ILogger logger, string alias);
+
+    [LoggerMessage(EventId = 1009, Level = LogLevel.Information, Message = "Adding external process supervisor for alias {Alias}.")]
+    private static partial void LogAddingProcess(ILogger logger, string alias);
+
+    [LoggerMessage(EventId = 1010, Level = LogLevel.Information, Message = "Removing external process supervisor for alias {Alias}.")]
+    private static partial void LogRemovingProcess(ILogger logger, string alias);
 
     private sealed record ManagedProcessEntry(
         EffectiveExternalProcessConfiguration Configuration,

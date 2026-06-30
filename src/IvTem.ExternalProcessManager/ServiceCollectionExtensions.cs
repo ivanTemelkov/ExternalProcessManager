@@ -5,6 +5,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 namespace IvTem.ExternalProcessManager;
 
@@ -20,6 +21,7 @@ public static class ServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(section);
 
+        services.AddLogging();
         services.TryAddSingleton(new ExternalProcessManagerConfigurationSource(section));
         services.TryAddSingleton<ExternalProcessConfigurationReader>();
         services.TryAddSingleton<ExternalProcessConfigurationValidator>();

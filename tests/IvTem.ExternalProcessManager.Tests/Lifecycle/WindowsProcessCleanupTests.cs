@@ -2,6 +2,8 @@ using System.Diagnostics;
 using System.Globalization;
 using IvTem.ExternalProcessManager.Configuration;
 using IvTem.ExternalProcessManager.Lifecycle;
+using IvTem.ExternalProcessManager.Tests;
+using Microsoft.Extensions.Logging;
 
 namespace IvTem.ExternalProcessManager.Tests.Lifecycle;
 
@@ -23,7 +25,7 @@ public sealed class WindowsProcessCleanupTests
             stoppedFile.Path);
         await readyFile.WaitUntilExists();
 
-        WindowsProcessCleanup cleanup = new();
+        WindowsProcessCleanup cleanup = new(new TestLogger<WindowsProcessCleanup>());
 
         ProcessCleanupResult result = await cleanup.Stop(
             handle,
@@ -48,7 +50,8 @@ public sealed class WindowsProcessCleanupTests
             readyFile.Path);
         await readyFile.WaitUntilExists();
 
-        WindowsProcessCleanup cleanup = new();
+        TestLogger<WindowsProcessCleanup> logger = new();
+        WindowsProcessCleanup cleanup = new(logger);
 
         ProcessCleanupResult result = await cleanup.Stop(
             handle,
@@ -57,6 +60,10 @@ public sealed class WindowsProcessCleanupTests
 
         Assert.Equal(ProcessCleanupOutcome.ForceKilled, result.Outcome);
         Assert.NotEqual(0, result.ExitCode);
+        Assert.Contains(logger.Entries, entry => entry.EventId == 3001
+            && entry.Level == LogLevel.Warning);
+        Assert.Contains(logger.Entries, entry => entry.EventId == 3002
+            && entry.Message.Contains(nameof(ProcessCleanupOutcome.ForceKilled), StringComparison.Ordinal));
     }
 
     [Fact]
@@ -76,7 +83,7 @@ public sealed class WindowsProcessCleanupTests
         await readyFile.WaitUntilExists();
         int childProcessId = await ReadProcessId(childPidFile.Path);
 
-        WindowsProcessCleanup cleanup = new();
+        WindowsProcessCleanup cleanup = new(new TestLogger<WindowsProcessCleanup>());
 
         ProcessCleanupResult result = await cleanup.Stop(
             handle,

@@ -2,6 +2,8 @@ using System.Collections.Immutable;
 using IvTem.ExternalProcessManager.Configuration;
 using IvTem.ExternalProcessManager.Lifecycle;
 using IvTem.ExternalProcessManager.Scheduling;
+using IvTem.ExternalProcessManager.Tests;
+using Microsoft.Extensions.Logging;
 
 namespace IvTem.ExternalProcessManager.Tests.Lifecycle;
 
@@ -15,7 +17,8 @@ public sealed class ExternalProcessSupervisorTests
         ImmediateRestartDelay restartDelay = new();
         FakeLocalClock clock = new();
         FakeScheduledRestartTimerFactory timerFactory = new();
-        using ExternalProcessSupervisor supervisor = new(CreateConfiguration(), launcher, cleanup, restartDelay, clock, timerFactory);
+        TestLogger<ExternalProcessSupervisor> logger = new();
+        using ExternalProcessSupervisor supervisor = new(CreateConfiguration(), launcher, cleanup, restartDelay, clock, timerFactory, logger);
 
         await supervisor.Start(CancellationToken.None);
 
@@ -33,7 +36,8 @@ public sealed class ExternalProcessSupervisorTests
         ImmediateRestartDelay restartDelay = new();
         FakeLocalClock clock = new();
         FakeScheduledRestartTimerFactory timerFactory = new();
-        using ExternalProcessSupervisor supervisor = new(CreateConfiguration(), launcher, cleanup, restartDelay, clock, timerFactory);
+        TestLogger<ExternalProcessSupervisor> logger = new();
+        using ExternalProcessSupervisor supervisor = new(CreateConfiguration(), launcher, cleanup, restartDelay, clock, timerFactory, logger);
 
         await Task.WhenAll(
             supervisor.Start(CancellationToken.None),
@@ -52,7 +56,7 @@ public sealed class ExternalProcessSupervisorTests
         ImmediateRestartDelay restartDelay = new();
         FakeLocalClock clock = new();
         FakeScheduledRestartTimerFactory timerFactory = new();
-        using ExternalProcessSupervisor supervisor = new(CreateConfiguration(), launcher, cleanup, restartDelay, clock, timerFactory);
+        using ExternalProcessSupervisor supervisor = new(CreateConfiguration(), launcher, cleanup, restartDelay, clock, timerFactory, new TestLogger<ExternalProcessSupervisor>());
 
         await supervisor.Start(CancellationToken.None);
         await supervisor.Stop(CancellationToken.None);
@@ -72,7 +76,7 @@ public sealed class ExternalProcessSupervisorTests
         ImmediateRestartDelay restartDelay = new();
         FakeLocalClock clock = new();
         FakeScheduledRestartTimerFactory timerFactory = new();
-        using ExternalProcessSupervisor supervisor = new(CreateConfiguration(), launcher, cleanup, restartDelay, clock, timerFactory);
+        using ExternalProcessSupervisor supervisor = new(CreateConfiguration(), launcher, cleanup, restartDelay, clock, timerFactory, new TestLogger<ExternalProcessSupervisor>());
 
         await supervisor.Start(CancellationToken.None);
         launcher.LastHandle?.CompleteExit(0);
@@ -92,7 +96,8 @@ public sealed class ExternalProcessSupervisorTests
         ImmediateRestartDelay restartDelay = new();
         FakeLocalClock clock = new();
         FakeScheduledRestartTimerFactory timerFactory = new();
-        using ExternalProcessSupervisor supervisor = new(CreateConfiguration(), launcher, cleanup, restartDelay, clock, timerFactory);
+        TestLogger<ExternalProcessSupervisor> logger = new();
+        using ExternalProcessSupervisor supervisor = new(CreateConfiguration(), launcher, cleanup, restartDelay, clock, timerFactory, logger);
 
         await supervisor.Start(CancellationToken.None);
         launcher.LastHandle?.CompleteExit(7);
@@ -103,6 +108,9 @@ public sealed class ExternalProcessSupervisorTests
         Assert.Equal(ExternalProcessStatus.Running, snapshot.Status);
         Assert.Equal(1, snapshot.RestartCount);
         Assert.Equal(TimeSpan.FromSeconds(2), Assert.Single(restartDelay.RequestedDelays));
+        Assert.Contains(logger.Entries, entry => entry.EventId == 2007
+            && entry.Level == LogLevel.Information
+            && entry.Message.Contains("00:00:02", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -118,7 +126,8 @@ public sealed class ExternalProcessSupervisorTests
             cleanup,
             restartDelay,
             clock,
-            new FakeScheduledRestartTimerFactory());
+            new FakeScheduledRestartTimerFactory(),
+            new TestLogger<ExternalProcessSupervisor>());
 
         await supervisor.Start(CancellationToken.None);
         launcher.LastHandle?.CompleteExit(0);
@@ -142,7 +151,8 @@ public sealed class ExternalProcessSupervisorTests
             cleanup,
             restartDelay,
             clock,
-            new FakeScheduledRestartTimerFactory());
+            new FakeScheduledRestartTimerFactory(),
+            new TestLogger<ExternalProcessSupervisor>());
 
         await supervisor.Start(CancellationToken.None);
         launcher.LastHandle?.CompleteExit(7);
@@ -161,7 +171,7 @@ public sealed class ExternalProcessSupervisorTests
         ImmediateRestartDelay restartDelay = new();
         FakeLocalClock clock = new();
         FakeScheduledRestartTimerFactory timerFactory = new();
-        using ExternalProcessSupervisor supervisor = new(CreateConfiguration(), launcher, cleanup, restartDelay, clock, timerFactory);
+        using ExternalProcessSupervisor supervisor = new(CreateConfiguration(), launcher, cleanup, restartDelay, clock, timerFactory, new TestLogger<ExternalProcessSupervisor>());
 
         await supervisor.Start(CancellationToken.None);
         await supervisor.Stop(CancellationToken.None);
@@ -181,7 +191,7 @@ public sealed class ExternalProcessSupervisorTests
         BlockingRestartDelay restartDelay = new();
         FakeLocalClock clock = new();
         FakeScheduledRestartTimerFactory timerFactory = new();
-        using ExternalProcessSupervisor supervisor = new(CreateConfiguration(), launcher, cleanup, restartDelay, clock, timerFactory);
+        using ExternalProcessSupervisor supervisor = new(CreateConfiguration(), launcher, cleanup, restartDelay, clock, timerFactory, new TestLogger<ExternalProcessSupervisor>());
 
         await supervisor.Start(CancellationToken.None);
         launcher.LastHandle?.CompleteExit(7);
@@ -222,7 +232,8 @@ public sealed class ExternalProcessSupervisorTests
             cleanup,
             restartDelay,
             clock,
-            new FakeScheduledRestartTimerFactory());
+            new FakeScheduledRestartTimerFactory(),
+            new TestLogger<ExternalProcessSupervisor>());
 
         ExternalProcessSnapshot snapshot = supervisor.GetSnapshot();
 
@@ -247,7 +258,8 @@ public sealed class ExternalProcessSupervisorTests
             cleanup,
             restartDelay,
             clock,
-            timerFactory);
+            timerFactory,
+            new TestLogger<ExternalProcessSupervisor>());
 
         await supervisor.Start(CancellationToken.None);
 
@@ -283,7 +295,8 @@ public sealed class ExternalProcessSupervisorTests
             cleanup,
             restartDelay,
             clock,
-            timerFactory);
+            timerFactory,
+            new TestLogger<ExternalProcessSupervisor>());
 
         await supervisor.Start(CancellationToken.None);
         FakeScheduledRestartTimer timer = Assert.Single(timerFactory.Timers);
@@ -318,7 +331,8 @@ public sealed class ExternalProcessSupervisorTests
             cleanup,
             restartDelay,
             clock,
-            timerFactory);
+            timerFactory,
+            new TestLogger<ExternalProcessSupervisor>());
 
         await supervisor.Start(CancellationToken.None);
         FakeScheduledRestartTimer timer = Assert.Single(timerFactory.Timers);
@@ -350,7 +364,8 @@ public sealed class ExternalProcessSupervisorTests
             cleanup,
             restartDelay,
             clock,
-            timerFactory);
+            timerFactory,
+            new TestLogger<ExternalProcessSupervisor>());
 
         await supervisor.Start(CancellationToken.None);
         launcher.LastHandle?.CompleteExit(0);

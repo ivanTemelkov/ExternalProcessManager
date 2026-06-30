@@ -1,5 +1,6 @@
 using IvTem.ExternalProcessManager.Configuration;
 using IvTem.ExternalProcessManager.Scheduling;
+using Microsoft.Extensions.Logging;
 
 namespace IvTem.ExternalProcessManager.Lifecycle;
 
@@ -10,19 +11,22 @@ internal sealed class ExternalProcessSupervisorFactory : IExternalProcessSupervi
         IProcessCleanup cleanup,
         IRestartDelay restartDelay,
         ILocalClock clock,
-        IScheduledRestartTimerFactory scheduledRestartTimerFactory)
+        IScheduledRestartTimerFactory scheduledRestartTimerFactory,
+        ILogger<ExternalProcessSupervisor> logger)
     {
         ArgumentNullException.ThrowIfNull(launcher);
         ArgumentNullException.ThrowIfNull(cleanup);
         ArgumentNullException.ThrowIfNull(restartDelay);
         ArgumentNullException.ThrowIfNull(clock);
         ArgumentNullException.ThrowIfNull(scheduledRestartTimerFactory);
+        ArgumentNullException.ThrowIfNull(logger);
 
         Launcher = launcher;
         Cleanup = cleanup;
         RestartDelay = restartDelay;
         Clock = clock;
         ScheduledRestartTimerFactory = scheduledRestartTimerFactory;
+        Logger = logger;
     }
 
     private IProcessLauncher Launcher { get; }
@@ -35,6 +39,8 @@ internal sealed class ExternalProcessSupervisorFactory : IExternalProcessSupervi
 
     private IScheduledRestartTimerFactory ScheduledRestartTimerFactory { get; }
 
+    private ILogger<ExternalProcessSupervisor> Logger { get; }
+
     public IExternalProcessSupervisor Create(EffectiveExternalProcessConfiguration configuration)
     {
         ArgumentNullException.ThrowIfNull(configuration);
@@ -45,6 +51,7 @@ internal sealed class ExternalProcessSupervisorFactory : IExternalProcessSupervi
             Cleanup,
             RestartDelay,
             Clock,
-            ScheduledRestartTimerFactory);
+            ScheduledRestartTimerFactory,
+            Logger);
     }
 }

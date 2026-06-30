@@ -203,6 +203,11 @@ YYYY-MM-DD:
 - Reason: Existing cleanup tests depend on `spawn-child-ignore-ctrl-break` requiring the force-kill fallback for the whole process tree, while Task 16 also needs a straightforward child-spawn mode for helper-specific integration coverage.
 - Alternatives considered: Replacing the old mode with generic `spawn-child`; rejected because it changed the cleanup outcome from force-kill to graceful parent exit.
 
+2026-06-30:
+- Decision: Use source-generated `LoggerMessage` methods for lifecycle logging and call `AddLogging()` during service registration without adding any provider.
+- Reason: The library needs structured host-visible logs while staying sink-free, warning-clean, and friendly to trimming/AOT.
+- Alternatives considered: Calling `ILogger` extension methods directly; rejected because the project treats analyzer cleanliness as part of the build contract. Registering a concrete logger provider; rejected because hosts own logging sinks.
+
 ## Debugging Notes
 
 Record repeatable commands, flaky test notes, and process-control observations.

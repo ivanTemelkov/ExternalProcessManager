@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Globalization;
 using IvTem.ExternalProcessManager.Configuration;
 using IvTem.ExternalProcessManager.Lifecycle;
+using IvTem.ExternalProcessManager.Tests;
 
 namespace IvTem.ExternalProcessManager.Tests.Lifecycle;
 
@@ -100,7 +101,7 @@ public sealed class TestProcessExecutableTests
             "--stopped-file",
             stoppedFile.Path);
         await readyFile.WaitUntilExists();
-        WindowsProcessCleanup cleanup = new();
+        WindowsProcessCleanup cleanup = new(new TestLogger<WindowsProcessCleanup>());
 
         ProcessCleanupResult result = await cleanup.Stop(
             handle,
@@ -124,7 +125,7 @@ public sealed class TestProcessExecutableTests
             "--ready-file",
             readyFile.Path);
         await readyFile.WaitUntilExists();
-        WindowsProcessCleanup cleanup = new();
+        WindowsProcessCleanup cleanup = new(new TestLogger<WindowsProcessCleanup>());
 
         ProcessCleanupResult result = await cleanup.Stop(
             handle,

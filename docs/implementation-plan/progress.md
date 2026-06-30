@@ -28,7 +28,7 @@ Statuses:
 | 14 | Add hosted-service integration | Implemented | Registers an `IHostedService` adapter that starts and stops the singleton manager with Generic Host. |
 | 15 | Add manual lifecycle idempotency and disposal | Implemented | Manager start/stop are covered as idempotent, and disposal stops retained supervisors before disposing them. |
 | 16 | Build integration test helper executable | Implemented | Helper supports deterministic exit, delayed exit, run-until-killed, child process, graceful CTRL+BREAK, and forced-cleanup modes. |
-| 17 | Add logging coverage | Not Started | |
+| 17 | Add logging coverage | Implemented | Lifecycle, validation, restart, scheduled restart, hot-reload, and cleanup outcomes are logged through `ILogger`. |
 | 18 | Run final analyzer and platform pass | Not Started | |
 
 ## Progress Notes
@@ -159,3 +159,10 @@ YYYY-MM-DD:
 - Verification: `dotnet test IvTem.ExternalProcessManager.slnx` succeeded with 0 warnings and 0 errors; `dotnet build IvTem.ExternalProcessManager.slnx` succeeded with 0 warnings and 0 errors.
 - Follow-up: Continue with Task 17 to add logging coverage.
 - Memory: Added decision for preserving the existing `spawn-child-ignore-ctrl-break` mode as the forced process-tree cleanup scenario while adding the more general `spawn-child` mode.
+
+2026-06-30:
+- Task: 17 - Add logging coverage.
+- Change: Added source-generated `ILogger` messages for manager start/stop, hot reload, validation errors, supervisor process start/exit/restart/backoff/scheduled restart decisions, and graceful/forced cleanup outcomes; registered logging abstractions without adding a sink; added in-memory logger tests for manager lifecycle, validation errors, restart decisions, and forced-kill cleanup logs.
+- Verification: `rg "Console\.|File\.|EventLog|Telemetry|Trace\." src/IvTem.ExternalProcessManager -n` found no direct logging sinks; `dotnet test IvTem.ExternalProcessManager.slnx` succeeded with 101 passing tests; `dotnet build IvTem.ExternalProcessManager.slnx` succeeded with 0 warnings and 0 errors.
+- Follow-up: Continue with Task 18 for the final analyzer and platform pass.
+- Memory: Added decision for source-generated structured logs and logging registration without providers.

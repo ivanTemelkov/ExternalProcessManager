@@ -1,6 +1,7 @@
 using IvTem.ExternalProcessManager.Configuration;
 using IvTem.ExternalProcessManager.Lifecycle;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 
 namespace IvTem.ExternalProcessManager.Tests;
 
@@ -352,14 +353,54 @@ public sealed class ExternalProcessManagerTests
             && process.Status == ExternalProcessStatus.InvalidConfiguration);
     }
 
+    [Fact]
+    public async Task StartAndStopEmitLifecycleLogs()
+    {
+        TestConfigurationSource source = new(CreateConfiguration(("worker-a", "worker-a.exe")));
+        IConfigurationRoot configuration = BuildConfiguration(source);
+        FakeSupervisorFactory supervisorFactory = new();
+        TestLogger<ExternalProcessManager> logger = new();
+        using ExternalProcessManager manager = CreateManager(configuration, supervisorFactory, logger);
+
+        await manager.StartAsync();
+        await manager.StopAsync();
+
+        Assert.Contains(logger.Entries, entry => entry.EventId == 1000
+            && entry.Level == LogLevel.Information);
+        Assert.Contains(logger.Entries, entry => entry.EventId == 1001
+            && entry.Message.Contains("1 valid process", StringComparison.Ordinal));
+        Assert.Contains(logger.Entries, entry => entry.EventId == 1002
+            && entry.Level == LogLevel.Information);
+        Assert.Contains(logger.Entries, entry => entry.EventId == 1003
+            && entry.Level == LogLevel.Information);
+    }
+
+    [Fact]
+    public async Task ValidationErrorsAreLogged()
+    {
+        TestConfigurationSource source = new(CreateConfiguration(("worker-a", null)));
+        IConfigurationRoot configuration = BuildConfiguration(source);
+        FakeSupervisorFactory supervisorFactory = new();
+        TestLogger<ExternalProcessManager> logger = new();
+        using ExternalProcessManager manager = CreateManager(configuration, supervisorFactory, logger);
+
+        await manager.StartAsync();
+
+        TestLogEntry entry = Assert.Single(logger.Entries, entry => entry.EventId == 1006);
+        Assert.Equal(LogLevel.Warning, entry.Level);
+        Assert.Contains("ExternalProcessManager:Processes:0:FileName", entry.Message, StringComparison.Ordinal);
+    }
+
     private static ExternalProcessManager CreateManager(
         IConfiguration configuration,
-        IExternalProcessSupervisorFactory supervisorFactory)
+        IExternalProcessSupervisorFactory supervisorFactory,
+        TestLogger<ExternalProcessManager>? logger = null)
         => new(
             new ExternalProcessManagerConfigurationSource(configuration.GetSection("ExternalProcessManager")),
             new ExternalProcessConfigurationReader(),
             new ExternalProcessConfigurationValidator(),
-            supervisorFactory);
+            supervisorFactory,
+            logger ?? new TestLogger<ExternalProcessManager>());
 
     private static IConfigurationRoot BuildConfiguration(TestConfigurationSource source)
         => new ConfigurationBuilder()
