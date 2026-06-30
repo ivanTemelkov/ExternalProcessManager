@@ -113,6 +113,11 @@ YYYY-MM-DD:
 - Reason: v1 should execute once per configured occurrence while still allowing a manager that starts mid-repeat to find the next future instant.
 - Alternatives considered: Returning both offsets for the repeated local time; rejected because duplicate execution is explicitly out of scope for v1.
 
+2026-06-30:
+- Decision: `RestartBackoffState` does not read wall-clock time; callers pass process start, failure, or observation timestamps explicitly.
+- Reason: Task 07 requires deterministic unit tests and future supervisors already have process start and exit observations available.
+- Alternatives considered: Injecting `ILocalClock` directly into the backoff state; rejected because the state only needs elapsed runtime observations and should remain independent of scheduling/local-time concerns.
+
 ## Debugging Notes
 
 Record repeatable commands, flaky test notes, and process-control observations.

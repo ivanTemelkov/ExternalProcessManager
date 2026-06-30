@@ -18,7 +18,7 @@ Statuses:
 | 04 | Add validation and effective configuration normalization | Implemented | Produces effective configs plus invalid entries and validation errors. |
 | 05 | Implement day and schedule parsing | Implemented | Parses scheduled restart hour and day selectors into internal records. |
 | 06 | Implement scheduler calculation | Implemented | Deterministic local-time calculator with DST gap/repeat behavior. |
-| 07 | Implement restart backoff policy | Not Started | |
+| 07 | Implement restart backoff policy | Implemented | Per-alias state object computes exponential delays from explicit runtime timestamps. |
 | 08 | Implement process launcher abstraction | Not Started | |
 | 09 | Implement Windows cleanup abstraction | Not Started | |
 | 10 | Implement per-alias supervisor | Not Started | |
@@ -89,3 +89,10 @@ YYYY-MM-DD:
 - Verification: `dotnet test IvTem.ExternalProcessManager.slnx` succeeded with 0 warnings and 0 errors.
 - Follow-up: Continue with Task 07.
 - Memory: Added decisions for timezone-aware schedule calculation, DST gap handling, and ambiguous local-time handling.
+
+2026-06-30:
+- Task: 07 - Implement restart backoff policy.
+- Change: Added internal `RestartBackoffState` for per-alias exponential restart delays; first failures use `MinBackoff`, repeated failures double up to `MaxBackoff`, and observed stable runtimes reset the next delay to `MinBackoff`.
+- Verification: `dotnet test IvTem.ExternalProcessManager.slnx` succeeded with 0 warnings and 0 errors.
+- Follow-up: Continue with Task 08.
+- Memory: Added decision for explicit timestamp-driven backoff state reset.
