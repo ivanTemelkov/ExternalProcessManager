@@ -14,7 +14,7 @@ Statuses:
 |---|---|---|---|
 | 01 | Scaffold solution and projects | Implemented | Uses `IvTem.ExternalProcessManager.slnx` per project direction. |
 | 02 | Define public contracts | Implemented | Public manager contract, diagnostics snapshots, status enum, and DI extension added. |
-| 03 | Add configuration reader and raw models | Not Started | |
+| 03 | Add configuration reader and raw models | Implemented | Raw reader preserves values and configuration paths. |
 | 04 | Add validation and effective configuration normalization | Not Started | |
 | 05 | Implement day and schedule parsing | Not Started | |
 | 06 | Implement scheduler calculation | Not Started | |
@@ -61,3 +61,10 @@ YYYY-MM-DD:
 - Verification: `dotnet test IvTem.ExternalProcessManager.slnx` succeeded with 0 warnings and 0 errors.
 - Follow-up: Continue with Task 03.
 - Memory: Added decisions for immutable snapshot collections and the temporary internal manager registration.
+
+2026-06-30:
+- Task: 03 - Add configuration reader and raw models.
+- Change: Added internal raw configuration records and `ExternalProcessConfigurationReader` that manually reads `Processes`, launch fields, argument arrays, environment children, restart settings, scheduled restart settings, and configuration paths from `IConfiguration`.
+- Verification: `dotnet test IvTem.ExternalProcessManager.slnx` succeeded with 0 warnings and 0 errors.
+- Follow-up: Continue with Task 04.
+- Memory: Added decisions for path-preserving raw values and scalar/array day-of-week reading.

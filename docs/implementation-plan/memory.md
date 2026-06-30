@@ -63,6 +63,16 @@ YYYY-MM-DD:
 - Reason: Task 02 needs a usable public registration contract before configuration, reconciliation, and process supervision exist.
 - Alternatives considered: Leaving the service unregistered; rejected because the extension would compile but not satisfy the host integration contract.
 
+2026-06-30:
+- Decision: Raw configuration stores scalar values as `RawConfigurationValue` with both `Path` and `Value`.
+- Reason: Task 04 validation needs to report precise configuration paths while Task 03 must avoid parsing or validation decisions.
+- Alternatives considered: Storing only strings and recomputing paths during validation; rejected because nested fields and collection entries would be easier to misreport later.
+
+2026-06-30:
+- Decision: Raw scheduled restart configuration keeps `DayOfWeek` as both a scalar value and optional child-value collection.
+- Reason: Configuration supports both string selectors and JSON-array day selectors, and preserving both shapes avoids treating an array as invalid during raw reading.
+- Alternatives considered: Reading only `DayOfWeek.Value`; rejected because array-shaped configuration would lose the configured day values before schedule parsing.
+
 ## Debugging Notes
 
 Record repeatable commands, flaky test notes, and process-control observations.
