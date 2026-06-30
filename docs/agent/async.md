@@ -4,14 +4,13 @@
   **Do not add an `Async` suffix** — name the method for what it does. Add the
   suffix only to disambiguate a sync/async pair of the same operation (rare).
   **Never `async void`** except unavoidable event handlers.
-- **Append `.ContinueOnAnyContext()` to every awaited call.** This is the
-  project wrapper for `ConfigureAwait(continueOnCapturedContext: false)`. Do
-  **not** write `ConfigureAwait(false)` longhand.
+- **Append `.ConfigureAwait(continueOnCapturedContext: false)` to every awaited call in libraries.**
 
   ```csharp
   var result = await session.SimpleRead(nodeId, Attributes.Value)
-      .ContinueOnAnyContext();
-  await app.RunAsync().ContinueOnAnyContext();
+      .ConfigureAwait(continueOnCapturedContext: false);
+  await app.RunAsync()
+      .ConfigureAwait(continueOnCapturedContext: false);  
   ```
 
   > The wrappers can be found in the LinkManagement.Common.Tasks namespace of the LinkManagement.Common project

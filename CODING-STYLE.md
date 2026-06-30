@@ -240,7 +240,7 @@ build — keep your code warning-clean.
 
   await using var connection = new SqlConnection(ConnectionString);
   var result = await connection.QueryAsync<MonitorWorkflow>(GetAllWorkflowsQuery)
-      .ContinueOnAnyContext();
+      .ConfigureAwait(continueOnCapturedContext: false);
   ```
 
 - Pass parameters with **`DynamicParameters`** (never string-concatenate input).
@@ -256,7 +256,7 @@ build — keep your code warning-clean.
 - [ ] Private fields `camelCase` (no `_`); prefer private auto-properties.
 - [ ] `== false` for negation; no `this.`.
 - [ ] `var` only when the type is obvious.
-- [ ] Every `await` ends with `.ContinueOnAnyContext()`; async methods are **not** `Async`-suffixed.
+- [ ] Every `await` ends with `.ConfigureAwait(false)` for library code; async methods are **not** `Async`-suffixed.
 - [ ] Expected failures return `Result`/`Result<T>`; exceptions are `sealed`.
 - [ ] Strings/dictionaries pass an explicit `StringComparison`/`StringComparer`.
 - [ ] Public APIs return immutable collections.
