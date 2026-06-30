@@ -138,6 +138,16 @@ YYYY-MM-DD:
 - Reason: The graceful path supports console helpers that cooperate, while the fallback reliably cleans up descendants for uncooperative or non-console processes.
 - Alternatives considered: Root-process-only kill; rejected because cleanup scope requires descendants to be terminated too.
 
+2026-06-30:
+- Decision: `ExternalProcessSupervisor` uses a per-alias serialized operation lock plus a monotonically increasing version to suppress stale exit observers and pending restarts after explicit starts or stops.
+- Reason: Exit observation and restart delay happen asynchronously, and version checks prevent old lifecycle work from starting a duplicate process after a newer lifecycle command wins.
+- Alternatives considered: Holding the operation lock for the entire restart backoff delay; rejected because explicit stop/start commands should be able to supersede a pending restart.
+
+2026-06-30:
+- Decision: Restart backoff waiting is behind an internal `IRestartDelay` abstraction registered as `SystemRestartDelay`.
+- Reason: The supervisor needs deterministic tests that prove a backoff delay is requested before relaunch without making the test suite sleep for real backoff durations.
+- Alternatives considered: Calling `Task.Delay` directly in the supervisor; rejected because restart tests would either be slow or unable to assert pending-restart behavior cleanly.
+
 ## Debugging Notes
 
 Record repeatable commands, flaky test notes, and process-control observations.

@@ -21,6 +21,7 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton<ILocalClock, SystemLocalClock>();
         services.TryAddSingleton<IProcessLauncher, WindowsProcessLauncher>();
         services.TryAddSingleton<IProcessCleanup, WindowsProcessCleanup>();
+        services.TryAddSingleton<IRestartDelay, SystemRestartDelay>();
         services.TryAddSingleton<IExternalProcessManager, ExternalProcessManager>();
 
         return services;

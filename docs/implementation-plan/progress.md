@@ -21,7 +21,7 @@ Statuses:
 | 07 | Implement restart backoff policy | Implemented | Per-alias state object computes exponential delays from explicit runtime timestamps. |
 | 08 | Implement process launcher abstraction | Implemented | Internal launcher maps effective config to `ProcessStartInfo` and returns disposable observable handles. |
 | 09 | Implement Windows cleanup abstraction | Implemented | Starts managed processes in a Windows process group, sends CTRL+BREAK for graceful stop, then force-kills the process tree when needed. |
-| 10 | Implement per-alias supervisor | Not Started | |
+| 10 | Implement per-alias supervisor | Implemented | Serializes per-alias lifecycle operations and applies restart policy/backoff. |
 | 11 | Implement manager reconciliation and hot reload | Not Started | |
 | 12 | Implement diagnostics snapshots | Not Started | |
 | 13 | Implement scheduled restart execution | Not Started | |
@@ -110,3 +110,10 @@ YYYY-MM-DD:
 - Verification: `dotnet test IvTem.ExternalProcessManager.slnx` succeeded with 0 warnings and 0 errors; `dotnet build IvTem.ExternalProcessManager.slnx` succeeded with 0 warnings and 0 errors.
 - Follow-up: Continue with Task 10; supervisor code should call `IProcessCleanup.Stop` before disposing running handles.
 - Memory: Added decisions for Windows process-group launch and cleanup fallback behavior.
+
+2026-06-30:
+- Task: 10 - Implement per-alias supervisor.
+- Change: Added `ExternalProcessSupervisor` with serialized start/stop/exit handling, intentional-stop suppression, restart-mode decisions, restart backoff, snapshot state tracking, and injectable restart delay; registered the delay service; added fake-based lifecycle and restart-policy tests.
+- Verification: `dotnet test IvTem.ExternalProcessManager.slnx` succeeded with 0 warnings and 0 errors.
+- Follow-up: Continue with Task 11; manager reconciliation should create one supervisor per valid alias and compose supervisor snapshots with validation state.
+- Memory: Added decisions for versioned restart suppression and injectable restart delay.
