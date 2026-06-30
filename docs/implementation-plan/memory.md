@@ -198,6 +198,11 @@ YYYY-MM-DD:
 - Reason: Manual users and DI containers need a deterministic cleanup path that does not rely on the hosted-service adapter being called first, and disposal must not leave managed child processes running.
 - Alternatives considered: Keeping only synchronous `IDisposable`; rejected because graceful process cleanup is asynchronous. Keeping disposal as handle-only cleanup; rejected because it bypassed the supervised stop path.
 
+2026-06-30:
+- Decision: Keep `spawn-child-ignore-ctrl-break` as a compatibility helper mode where both parent and child ignore CTRL+BREAK, and add `spawn-child` as the generic child-process helper mode.
+- Reason: Existing cleanup tests depend on `spawn-child-ignore-ctrl-break` requiring the force-kill fallback for the whole process tree, while Task 16 also needs a straightforward child-spawn mode for helper-specific integration coverage.
+- Alternatives considered: Replacing the old mode with generic `spawn-child`; rejected because it changed the cleanup outcome from force-kill to graceful parent exit.
+
 ## Debugging Notes
 
 Record repeatable commands, flaky test notes, and process-control observations.

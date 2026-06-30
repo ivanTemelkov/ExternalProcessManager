@@ -27,7 +27,7 @@ Statuses:
 | 13 | Implement scheduled restart execution | Implemented | Supervisors schedule one-shot due timers and execute intentional restarts under the per-alias lifecycle lock. |
 | 14 | Add hosted-service integration | Implemented | Registers an `IHostedService` adapter that starts and stops the singleton manager with Generic Host. |
 | 15 | Add manual lifecycle idempotency and disposal | Implemented | Manager start/stop are covered as idempotent, and disposal stops retained supervisors before disposing them. |
-| 16 | Build integration test helper executable | Not Started | |
+| 16 | Build integration test helper executable | Implemented | Helper supports deterministic exit, delayed exit, run-until-killed, child process, graceful CTRL+BREAK, and forced-cleanup modes. |
 | 17 | Add logging coverage | Not Started | |
 | 18 | Run final analyzer and platform pass | Not Started | |
 
@@ -152,3 +152,10 @@ YYYY-MM-DD:
 - Verification: `dotnet test IvTem.ExternalProcessManager.slnx` succeeded with 0 warnings and 0 errors; `dotnet build IvTem.ExternalProcessManager.slnx` succeeded with 0 warnings and 0 errors.
 - Follow-up: Continue with Task 16 to expand the helper executable for remaining integration scenarios.
 - Memory: Added decision for manager disposal owning a final stop-before-dispose pass.
+
+2026-06-30:
+- Task: 16 - Build integration test helper executable.
+- Change: Expanded the helper executable with documented modes for immediate exit, delayed exit, run-until-killed, generic child spawning, CTRL+BREAK handling, CTRL+BREAK ignoring, and retained the existing child-ignore compatibility mode; added helper-specific integration tests for each required behavior.
+- Verification: `dotnet test IvTem.ExternalProcessManager.slnx` succeeded with 0 warnings and 0 errors; `dotnet build IvTem.ExternalProcessManager.slnx` succeeded with 0 warnings and 0 errors.
+- Follow-up: Continue with Task 17 to add logging coverage.
+- Memory: Added decision for preserving the existing `spawn-child-ignore-ctrl-break` mode as the forced process-tree cleanup scenario while adding the more general `spawn-child` mode.
