@@ -93,6 +93,26 @@ YYYY-MM-DD:
 - Reason: The reader preserves both scalar and array shapes, and using one parser keeps schedule behavior consistent across providers.
 - Alternatives considered: Treating each array item as exactly one day; rejected because it would make arrays less tolerant than equivalent scalar configuration.
 
+2026-06-30:
+- Decision: Scheduled restart calculation is timezone-aware internally: callers pass a current local `DateTimeOffset`, and `ScheduledRestartCalculator` resolves occurrences against its configured `TimeZoneInfo`.
+- Reason: This keeps tests deterministic while preserving local host time behavior for the system clock implementation.
+- Alternatives considered: Using `TimeZoneInfo.Local` directly inside the calculator; rejected because DST behavior would be host-machine dependent in tests.
+
+2026-06-30:
+- Decision: Register `ILocalClock` as `SystemLocalClock` with `TryAddSingleton` in `AddExternalProcessManager`.
+- Reason: Task 06 calls for an injectable clock, and `TryAddSingleton` leaves room for tests or future host integration to replace the clock before registration.
+- Alternatives considered: Leaving the clock unregistered until lifecycle tasks; rejected because the abstraction would exist but not be injectable through the library's normal setup path.
+
+2026-06-30:
+- Decision: Invalid local times during DST gaps are skipped, so the calculator returns the next configured local occurrence that exists in the timezone.
+- Reason: Task 06 defines v1 behavior as the next valid local occurrence.
+- Alternatives considered: Moving a missing time forward to the first valid clock time after the gap; rejected because that would restart at a time that was not configured.
+
+2026-06-30:
+- Decision: Ambiguous local times during DST fall-back resolve to a single occurrence, choosing the earliest future instant for that configured local time.
+- Reason: v1 should execute once per configured occurrence while still allowing a manager that starts mid-repeat to find the next future instant.
+- Alternatives considered: Returning both offsets for the repeated local time; rejected because duplicate execution is explicitly out of scope for v1.
+
 ## Debugging Notes
 
 Record repeatable commands, flaky test notes, and process-control observations.

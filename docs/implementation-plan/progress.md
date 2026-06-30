@@ -17,7 +17,7 @@ Statuses:
 | 03 | Add configuration reader and raw models | Implemented | Raw reader preserves values and configuration paths. |
 | 04 | Add validation and effective configuration normalization | Implemented | Produces effective configs plus invalid entries and validation errors. |
 | 05 | Implement day and schedule parsing | Implemented | Parses scheduled restart hour and day selectors into internal records. |
-| 06 | Implement scheduler calculation | Not Started | |
+| 06 | Implement scheduler calculation | Implemented | Deterministic local-time calculator with DST gap/repeat behavior. |
 | 07 | Implement restart backoff policy | Not Started | |
 | 08 | Implement process launcher abstraction | Not Started | |
 | 09 | Implement Windows cleanup abstraction | Not Started | |
@@ -82,3 +82,10 @@ YYYY-MM-DD:
 - Verification: `dotnet test IvTem.ExternalProcessManager.slnx` succeeded with 0 warnings and 0 errors.
 - Follow-up: Continue with Task 06.
 - Memory: Added decisions for parsed schedule representation and `All` expansion.
+
+2026-06-30:
+- Task: 06 - Implement scheduler calculation.
+- Change: Added an internal local clock abstraction, registered the system local clock through `AddExternalProcessManager`, and added a deterministic scheduled restart calculator that returns sorted distinct next occurrences and the earliest next restart across validated schedules; DST gaps skip invalid local occurrences and ambiguous local times produce one configured occurrence.
+- Verification: `dotnet test IvTem.ExternalProcessManager.slnx` succeeded with 0 warnings and 0 errors.
+- Follow-up: Continue with Task 07.
+- Memory: Added decisions for timezone-aware schedule calculation, DST gap handling, and ambiguous local-time handling.

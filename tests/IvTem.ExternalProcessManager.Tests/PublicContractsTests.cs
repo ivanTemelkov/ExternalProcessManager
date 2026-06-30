@@ -1,4 +1,5 @@
 using IvTem.ExternalProcessManager;
+using IvTem.ExternalProcessManager.Scheduling;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -17,12 +18,14 @@ public sealed class PublicContractsTests
 
         using ServiceProvider provider = services.BuildServiceProvider();
         IExternalProcessManager manager = provider.GetRequiredService<IExternalProcessManager>();
+        ILocalClock clock = provider.GetRequiredService<ILocalClock>();
 
         await manager.StartAsync();
         ExternalProcessManagerSnapshot snapshot = manager.GetSnapshot();
         await manager.StopAsync();
 
         Assert.Same(services, returnedServices);
+        Assert.IsType<SystemLocalClock>(clock);
         Assert.True(snapshot.IsRunning);
         Assert.Empty(snapshot.Processes);
         Assert.Empty(snapshot.ValidationErrors);
