@@ -5,6 +5,11 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <IsAotCompatible>true</IsAotCompatible>
+    <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
+    <EnableAotAnalyzer>true</EnableAotAnalyzer>
+    <PublishAot>true</PublishAot>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
 
@@ -21,5 +26,19 @@
   <ItemGroup>
     <None Update="appsettings.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
+
+  <Target Name="PublishSampleWorker" AfterTargets="Publish">
+    <MSBuild
+      Projects="..\IvTem.ExternalProcessManager.SampleWorker\IvTem.ExternalProcessManager.SampleWorker.csproj"
+      Targets="Publish"
+      Properties="Configuration=$(Configuration);RuntimeIdentifier=$(RuntimeIdentifier);PublishAot=$(PublishAot)" />
+    <ItemGroup>
+      <PublishedSampleWorker Include="..\IvTem.ExternalProcessManager.SampleWorker\bin\$(Configuration)\$(TargetFramework)\$(RuntimeIdentifier)\publish\IvTem.ExternalProcessManager.SampleWorker.exe" />
+    </ItemGroup>
+    <Copy
+      SourceFiles="@(PublishedSampleWorker)"
+      DestinationFolder="$(PublishDir)"
+      SkipUnchangedFiles="true" />
+  </Target>
 
 </Project>

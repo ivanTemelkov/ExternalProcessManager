@@ -223,6 +223,11 @@ YYYY-MM-DD:
 - Reason: `dotnet run --project samples/IvTem.ExternalProcessManager.SampleHost` can be launched from the repository root, so relying on the current directory would make sample configuration and worker discovery brittle.
 - Alternatives considered: Hard-coding source-tree paths; rejected because it would not survive different repository locations. Copying the worker into the host output; rejected because a sibling project reference and deterministic output lookup keep the sample simpler while still building the worker automatically.
 
+2026-06-30:
+- Decision: The sample host resolves a side-by-side worker executable only from publish output, then falls back to the worker project's build output for normal `dotnet run`.
+- Reason: Native AOT publish places the worker executable beside the host, but normal build output can contain copied apphost stubs without the matching worker DLL; using those stubs causes immediate worker exits.
+- Alternatives considered: Always preferring side-by-side worker executables; rejected because normal `dotnet run` can select an incomplete copied apphost. Publishing only the host and expecting users to publish the worker manually; rejected because the AOT sample should be runnable from the host publish folder.
+
 ## Debugging Notes
 
 Record repeatable commands, flaky test notes, and process-control observations.

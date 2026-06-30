@@ -188,3 +188,10 @@ YYYY-MM-DD:
 - Verification: `dotnet build IvTem.ExternalProcessManager.slnx` succeeded with 0 warnings and 0 errors; `dotnet test IvTem.ExternalProcessManager.slnx` succeeded with 101 passing tests; `dotnet run --project samples/IvTem.ExternalProcessManager.SampleHost -- --SampleHost:RunSeconds=8` started the sample worker, logged `Running` diagnostics with process ID, restart count, and next scheduled restart, then stopped the worker with graceful CTRL+BREAK cleanup.
 - Follow-up: None currently.
 - Memory: Added decision for resolving the sample worker from the host output folder so `dotnet run --project samples/IvTem.ExternalProcessManager.SampleHost` works from the repository root.
+
+2026-06-30:
+- Task: 19 - Add sample host application.
+- Change: Made both sample projects Native AOT publish-ready, copied the published sample worker beside the published host, made worker path resolution prefer side-by-side publish output while preserving `dotnet run`, and documented normal plus AOT sample commands.
+- Verification: `dotnet build IvTem.ExternalProcessManager.slnx` succeeded with 0 warnings and 0 errors; `dotnet test IvTem.ExternalProcessManager.slnx` succeeded with 101 passing tests; `dotnet run --project samples/IvTem.ExternalProcessManager.SampleHost -- --SampleHost:RunSeconds=4` started and gracefully stopped the worker; `dotnet publish samples/IvTem.ExternalProcessManager.SampleHost/IvTem.ExternalProcessManager.SampleHost.csproj -c Release -r win-x64` completed with no warnings; the published host executable started the side-by-side published worker and stopped it gracefully.
+- Follow-up: None currently.
+- Memory: Added decision for publish-only side-by-side worker resolution to avoid selecting copied apphost stubs from normal build output.
