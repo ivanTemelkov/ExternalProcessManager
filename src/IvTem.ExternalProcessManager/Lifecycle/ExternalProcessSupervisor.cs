@@ -4,7 +4,7 @@ using IvTem.ExternalProcessManager.Configuration;
 
 namespace IvTem.ExternalProcessManager.Lifecycle;
 
-internal sealed class ExternalProcessSupervisor : IDisposable
+internal sealed class ExternalProcessSupervisor : IExternalProcessSupervisor
 {
     public ExternalProcessSupervisor(
         EffectiveExternalProcessConfiguration configuration,

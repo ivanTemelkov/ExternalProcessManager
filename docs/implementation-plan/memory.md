@@ -148,6 +148,21 @@ YYYY-MM-DD:
 - Reason: The supervisor needs deterministic tests that prove a backoff delay is requested before relaunch without making the test suite sleep for real backoff durations.
 - Alternatives considered: Calling `Task.Delay` directly in the supervisor; rejected because restart tests would either be slow or unable to assert pending-restart behavior cleanly.
 
+2026-06-30:
+- Decision: `ExternalProcessManager` owns a reload-token subscription from the supplied configuration section and reconciles changes directly from the existing raw reader and validator.
+- Reason: v1 must use host-provided configuration reload and avoid a separate file watcher while keeping invalid entries best-effort and non-throwing.
+- Alternatives considered: Adding options binding or a file watcher; rejected because the current configuration reader is path-preserving, trim-friendly, and already handles the raw schema.
+
+2026-06-30:
+- Decision: Add an internal `IExternalProcessSupervisorFactory` and `IExternalProcessSupervisor` seam while keeping `ExternalProcessSupervisor` as the production implementation.
+- Reason: Manager reconciliation needs focused unit tests for alias diff behavior without launching Windows processes.
+- Alternatives considered: Testing manager reconciliation through the real launcher; rejected because it would make hot-reload tests slower, platform-side-effect-heavy, and less precise.
+
+2026-06-30:
+- Decision: When a hot-reloaded alias becomes invalid but matches an existing supervisor, the manager keeps the existing supervisor and overlays the current validation errors onto that alias snapshot without changing the runtime status.
+- Reason: Diagnostics should show that the last valid process is still running while also surfacing the current invalid configuration.
+- Alternatives considered: Marking the process snapshot as `InvalidConfiguration`; rejected because that would hide the actual running/stopped runtime state for the preserved supervisor.
+
 ## Debugging Notes
 
 Record repeatable commands, flaky test notes, and process-control observations.

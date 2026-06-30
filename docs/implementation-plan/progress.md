@@ -22,7 +22,7 @@ Statuses:
 | 08 | Implement process launcher abstraction | Implemented | Internal launcher maps effective config to `ProcessStartInfo` and returns disposable observable handles. |
 | 09 | Implement Windows cleanup abstraction | Implemented | Starts managed processes in a Windows process group, sends CTRL+BREAK for graceful stop, then force-kills the process tree when needed. |
 | 10 | Implement per-alias supervisor | Implemented | Serializes per-alias lifecycle operations and applies restart policy/backoff. |
-| 11 | Implement manager reconciliation and hot reload | Not Started | |
+| 11 | Implement manager reconciliation and hot reload | Implemented | Reconciles valid aliases, preserves last valid config for invalid changed aliases, and reports invalid entries in snapshots. |
 | 12 | Implement diagnostics snapshots | Not Started | |
 | 13 | Implement scheduled restart execution | Not Started | |
 | 14 | Add hosted-service integration | Not Started | |
@@ -117,3 +117,10 @@ YYYY-MM-DD:
 - Verification: `dotnet test IvTem.ExternalProcessManager.slnx` succeeded with 0 warnings and 0 errors.
 - Follow-up: Continue with Task 11; manager reconciliation should create one supervisor per valid alias and compose supervisor snapshots with validation state.
 - Memory: Added decisions for versioned restart suppression and injectable restart delay.
+
+2026-06-30:
+- Task: 11 - Implement manager reconciliation and hot reload.
+- Change: Replaced the placeholder manager with a configuration-reading reconciler, reload-token subscription, case-insensitive alias diffing, supervisor factory creation, invalid-entry diagnostics, and stop/removal handling; registered configuration reader, validator, configuration source, and supervisor factory in DI; added manager hot-reload tests.
+- Verification: `dotnet test IvTem.ExternalProcessManager.slnx` succeeded with 0 warnings and 0 errors.
+- Follow-up: Continue with Task 12 to refine diagnostics snapshots, including scheduled restart fields and any additional runtime state presentation.
+- Memory: Added decisions for manager-owned reload subscription, supervisor factory test seam, and invalid changed alias diagnostics overlay.
