@@ -188,6 +188,11 @@ YYYY-MM-DD:
 - Reason: The scheduled restart feature represents an executed maintenance cycle, and the docs require stopped-but-supervised aliases to be started at due time while diagnostics reflect that execution.
 - Alternatives considered: Leaving stopped aliases stopped until manual start or crash policy restart; rejected because scheduled maintenance would not recover a supervised process that exited normally before the due time.
 
+2026-06-30:
+- Decision: Hosted integration uses a small `IHostedService` adapter over the singleton `IExternalProcessManager`, registered with `TryAddEnumerable`.
+- Reason: Generic Host can own lifecycle without changing the manual manager API, and repeated calls to `AddExternalProcessManager` do not add duplicate hosted-service adapters or managers.
+- Alternatives considered: Making `ExternalProcessManager` implement `IHostedService` directly; rejected because it would mix public manual lifecycle concerns with host lifecycle plumbing.
+
 ## Debugging Notes
 
 Record repeatable commands, flaky test notes, and process-control observations.

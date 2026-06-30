@@ -4,6 +4,7 @@ using IvTem.ExternalProcessManager.Scheduling;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 
 namespace IvTem.ExternalProcessManager;
 
@@ -29,6 +30,7 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton<IScheduledRestartTimerFactory, SystemScheduledRestartTimerFactory>();
         services.TryAddSingleton<IExternalProcessSupervisorFactory, ExternalProcessSupervisorFactory>();
         services.TryAddSingleton<IExternalProcessManager, ExternalProcessManager>();
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, ExternalProcessManagerHostedService>());
 
         return services;
     }

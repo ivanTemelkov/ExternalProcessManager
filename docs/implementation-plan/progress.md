@@ -25,7 +25,7 @@ Statuses:
 | 11 | Implement manager reconciliation and hot reload | Implemented | Reconciles valid aliases, preserves last valid config for invalid changed aliases, and reports invalid entries in snapshots. |
 | 12 | Implement diagnostics snapshots | Implemented | Snapshots refresh from current supervisor state, preserve stopped process diagnostics, and include next scheduled restart values. |
 | 13 | Implement scheduled restart execution | Implemented | Supervisors schedule one-shot due timers and execute intentional restarts under the per-alias lifecycle lock. |
-| 14 | Add hosted-service integration | Not Started | |
+| 14 | Add hosted-service integration | Implemented | Registers an `IHostedService` adapter that starts and stops the singleton manager with Generic Host. |
 | 15 | Add manual lifecycle idempotency and disposal | Not Started | |
 | 16 | Build integration test helper executable | Not Started | |
 | 17 | Add logging coverage | Not Started | |
@@ -138,3 +138,10 @@ YYYY-MM-DD:
 - Verification: `dotnet test IvTem.ExternalProcessManager.slnx` succeeded with 0 warnings and 0 errors; `dotnet build IvTem.ExternalProcessManager.slnx` succeeded with 0 warnings and 0 errors.
 - Follow-up: Continue with Task 14; hosted-service integration should dispose manager-owned services through DI and should not add a separate configuration watcher.
 - Memory: Added decisions for supervisor-owned one-shot timers and scheduled restarts starting stopped supervised processes.
+
+2026-06-30:
+- Task: 14 - Add hosted-service integration.
+- Change: Added `ExternalProcessManagerHostedService`, registered it with `TryAddEnumerable`, added hosting abstraction dependencies, and covered DI registration plus Generic Host start/stop behavior with tests.
+- Verification: `dotnet test IvTem.ExternalProcessManager.slnx` succeeded with 0 warnings and 0 errors; `dotnet build IvTem.ExternalProcessManager.slnx` succeeded with 0 warnings and 0 errors.
+- Follow-up: Continue with Task 15; lifecycle idempotency and disposal should review repeated hosted/manual start-stop interactions after the hosted adapter.
+- Memory: Added decision for singleton manager lifecycle ownership through an `IHostedService` adapter.
