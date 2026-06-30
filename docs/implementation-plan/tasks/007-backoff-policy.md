@@ -7,10 +7,10 @@ Implement per-alias exponential restart backoff.
 ## Implementation Steps
 
 1. Add an internal backoff state object.
-2. First failure returns `MinBackoff`.
+2. First failure returns `MinBackoffSeconds` as a normalized duration.
 3. Repeated failures double the previous delay.
-4. Delay is capped at `MaxBackoff`.
-5. Backoff resets after a process remains alive for at least `StableRunDuration`.
+4. Delay is capped at `MaxBackoffSeconds` as a normalized duration.
+5. Backoff resets after a process remains alive for at least `StableRunDurationSeconds` as a normalized duration.
 6. Keep backoff state scoped to one alias.
 
 ## Done Means

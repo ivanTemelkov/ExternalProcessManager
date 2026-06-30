@@ -77,10 +77,10 @@ Backoff prevents crash loops from consuming CPU.
 
 Behavior:
 
-- first restart waits `MinBackoff`.
+- first restart waits `MinBackoffSeconds`.
 - repeated failures grow exponentially.
-- delay is capped at `MaxBackoff`.
-- backoff resets after `StableRunDuration` of continuous runtime.
+- delay is capped at `MaxBackoffSeconds`.
+- backoff resets after `StableRunDurationSeconds` of continuous runtime.
 
 Backoff state is per alias.
 
@@ -89,7 +89,7 @@ Backoff state is per alias.
 For v1 Windows behavior:
 
 1. Send a console control event such as CTRL+BREAK to the process group when possible.
-2. Wait `GracefulStopTimeout`.
+2. Wait `GracefulStopTimeoutSeconds`.
 3. If the process is still alive, kill the process tree.
 4. Update diagnostics with the final outcome.
 

@@ -22,9 +22,9 @@ Convert raw configuration into immutable internal effective configuration record
    - `Always`
    - `Never`
 5. Apply restart defaults when fields are missing.
-6. Parse duration fields as `TimeSpan`.
+6. Parse duration seconds fields as positive integers.
 7. Validate positive durations where required.
-8. Validate `MinBackoff <= MaxBackoff`.
+8. Validate `MinBackoffSeconds <= MaxBackoffSeconds`.
 9. Normalize arguments:
    - use `ArgumentList` when non-empty
    - otherwise use raw `Arguments`
@@ -46,9 +46,9 @@ Unit tests:
 - Missing alias fails.
 - Missing file name fails.
 - Invalid restart mode fails.
-- Invalid duration fails.
+- Invalid duration seconds value fails.
 - Zero or negative backoff fails.
-- `MinBackoff` greater than `MaxBackoff` fails.
+- `MinBackoffSeconds` greater than `MaxBackoffSeconds` fails.
 - Defaults are applied.
 - `ArgumentList` is preferred over `Arguments`.
 

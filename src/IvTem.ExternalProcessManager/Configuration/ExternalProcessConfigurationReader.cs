@@ -51,10 +51,10 @@ internal sealed class ExternalProcessConfigurationReader
         {
             Path = section.Path,
             Mode = ReadValue(section, nameof(RawRestartConfiguration.Mode)),
-            MinBackoff = ReadValue(section, nameof(RawRestartConfiguration.MinBackoff)),
-            MaxBackoff = ReadValue(section, nameof(RawRestartConfiguration.MaxBackoff)),
-            StableRunDuration = ReadValue(section, nameof(RawRestartConfiguration.StableRunDuration)),
-            GracefulStopTimeout = ReadValue(section, nameof(RawRestartConfiguration.GracefulStopTimeout)),
+            MinBackoffSeconds = ReadValue(section, nameof(RawRestartConfiguration.MinBackoffSeconds)),
+            MaxBackoffSeconds = ReadValue(section, nameof(RawRestartConfiguration.MaxBackoffSeconds)),
+            StableRunDurationSeconds = ReadValue(section, nameof(RawRestartConfiguration.StableRunDurationSeconds)),
+            GracefulStopTimeoutSeconds = ReadValue(section, nameof(RawRestartConfiguration.GracefulStopTimeoutSeconds)),
         };
     }
 

@@ -72,7 +72,7 @@ YYYY-MM-DD:
 
 2026-06-30:
 - Task: 04 - Add validation and effective configuration normalization.
-- Change: Added internal effective configuration records, restart and argument-mode enums, invalid-entry records, and `ExternalProcessConfigurationValidator`; validation covers required/unique aliases, required file names, restart mode parsing, duration parsing, positive duration checks, `MinBackoff <= MaxBackoff`, defaults, environment normalization, and `ArgumentList` preference.
+- Change: Added internal effective configuration records, restart and argument-mode enums, invalid-entry records, and `ExternalProcessConfigurationValidator`; validation covers required/unique aliases, required file names, restart mode parsing, duration seconds parsing, positive duration checks, `MinBackoffSeconds <= MaxBackoffSeconds`, defaults, environment normalization, and `ArgumentList` preference.
 - Verification: `dotnet test IvTem.ExternalProcessManager.slnx` succeeded with 0 warnings and 0 errors.
 - Follow-up: Continue with Task 05.
 - Memory: Added decisions for duplicate-alias handling and carrying scheduled restart values forward unparsed until Task 05.
@@ -93,7 +93,7 @@ YYYY-MM-DD:
 
 2026-06-30:
 - Task: 07 - Implement restart backoff policy.
-- Change: Added internal `RestartBackoffState` for per-alias exponential restart delays; first failures use `MinBackoff`, repeated failures double up to `MaxBackoff`, and observed stable runtimes reset the next delay to `MinBackoff`.
+- Change: Added internal `RestartBackoffState` for per-alias exponential restart delays; first failures use the configured minimum backoff, repeated failures double up to the configured maximum backoff, and observed stable runtimes reset the next delay to the minimum backoff.
 - Verification: `dotnet test IvTem.ExternalProcessManager.slnx` succeeded with 0 warnings and 0 errors.
 - Follow-up: Continue with Task 08.
 - Memory: Added decision for explicit timestamp-driven backoff state reset.
@@ -195,3 +195,10 @@ YYYY-MM-DD:
 - Verification: `dotnet build IvTem.ExternalProcessManager.slnx` succeeded with 0 warnings and 0 errors; `dotnet test IvTem.ExternalProcessManager.slnx` succeeded with 101 passing tests; `dotnet run --project samples/IvTem.ExternalProcessManager.SampleHost -- --SampleHost:RunSeconds=4` started and gracefully stopped the worker; `dotnet publish samples/IvTem.ExternalProcessManager.SampleHost/IvTem.ExternalProcessManager.SampleHost.csproj -c Release -r win-x64` completed with no warnings; the published host executable started the side-by-side published worker and stopped it gracefully.
 - Follow-up: None currently.
 - Memory: Added decision for publish-only side-by-side worker resolution to avoid selecting copied apphost stubs from normal build output.
+
+2026-06-30:
+- Task: Cross-cutting configuration schema update.
+- Change: Renamed restart timing configuration keys to `MinBackoffSeconds`, `MaxBackoffSeconds`, `StableRunDurationSeconds`, and `GracefulStopTimeoutSeconds`; validation now parses positive integer seconds and converts them to internal `TimeSpan` values; documentation, tests, and sample configuration were updated to the new schema.
+- Verification: `dotnet build IvTem.ExternalProcessManager.slnx` succeeded with 0 warnings and 0 errors; `dotnet test IvTem.ExternalProcessManager.slnx` succeeded with 103 passing tests; `dotnet run --project samples/IvTem.ExternalProcessManager.SampleHost -- --SampleHost:RunSeconds=8` started the sample worker, reported diagnostics, and stopped gracefully.
+- Follow-up: None currently.
+- Memory: Added decision for the breaking seconds-based restart timing schema.

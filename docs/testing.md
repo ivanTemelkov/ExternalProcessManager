@@ -28,8 +28,8 @@ Configuration parsing:
 - environment variable parsing.
 - working directory parsing.
 - invalid restart mode.
-- invalid duration.
-- `MinBackoff` greater than `MaxBackoff`.
+- invalid duration seconds value.
+- `MinBackoffSeconds` greater than `MaxBackoffSeconds`.
 
 Day and schedule parsing:
 

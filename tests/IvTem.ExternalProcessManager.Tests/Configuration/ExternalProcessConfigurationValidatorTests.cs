@@ -97,21 +97,21 @@ public sealed class ExternalProcessConfigurationValidatorTests
     }
 
     [Fact]
-    public void InvalidDurationFails()
+    public void InvalidDurationSecondsFails()
     {
         Dictionary<string, string?> values = new(StringComparer.Ordinal)
         {
             ["ExternalProcessManager:Processes:0:Alias"] = "worker-a",
             ["ExternalProcessManager:Processes:0:FileName"] = "worker-a.exe",
-            ["ExternalProcessManager:Processes:0:Restart:MinBackoff"] = "not-a-duration",
+            ["ExternalProcessManager:Processes:0:Restart:MinBackoffSeconds"] = "not-a-number",
         };
 
         EffectiveExternalProcessManagerConfiguration configuration = Validate(values);
 
         ExternalProcessValidationError error = Assert.Single(configuration.ValidationErrors);
         Assert.Equal("worker-a", error.Alias);
-        Assert.Equal("ExternalProcessManager:Processes:0:Restart:MinBackoff", error.Path);
-        Assert.Equal("MinBackoff must be a valid TimeSpan.", error.Message);
+        Assert.Equal("ExternalProcessManager:Processes:0:Restart:MinBackoffSeconds", error.Path);
+        Assert.Equal("MinBackoffSeconds must be a whole number of seconds.", error.Message);
     }
 
     [Fact]
@@ -121,8 +121,8 @@ public sealed class ExternalProcessConfigurationValidatorTests
         {
             ["ExternalProcessManager:Processes:0:Alias"] = "worker-a",
             ["ExternalProcessManager:Processes:0:FileName"] = "worker-a.exe",
-            ["ExternalProcessManager:Processes:0:Restart:MinBackoff"] = "00:00:00",
-            ["ExternalProcessManager:Processes:0:Restart:MaxBackoff"] = "-00:00:01",
+            ["ExternalProcessManager:Processes:0:Restart:MinBackoffSeconds"] = "0",
+            ["ExternalProcessManager:Processes:0:Restart:MaxBackoffSeconds"] = "-1",
         };
 
         EffectiveExternalProcessManagerConfiguration configuration = Validate(values);
@@ -130,29 +130,77 @@ public sealed class ExternalProcessConfigurationValidatorTests
         Assert.Equal(2, configuration.ValidationErrors.Length);
         Assert.Contains(
             configuration.ValidationErrors,
-            error => string.Equals(error.Message, "MinBackoff must be greater than zero.", StringComparison.Ordinal));
+            error => string.Equals(error.Message, "MinBackoffSeconds must be greater than zero.", StringComparison.Ordinal));
         Assert.Contains(
             configuration.ValidationErrors,
-            error => string.Equals(error.Message, "MaxBackoff must be greater than zero.", StringComparison.Ordinal));
+            error => string.Equals(error.Message, "MaxBackoffSeconds must be greater than zero.", StringComparison.Ordinal));
     }
 
     [Fact]
-    public void MinBackoffGreaterThanMaxBackoffFails()
+    public void MinBackoffSecondsGreaterThanMaxBackoffSecondsFails()
     {
         Dictionary<string, string?> values = new(StringComparer.Ordinal)
         {
             ["ExternalProcessManager:Processes:0:Alias"] = "worker-a",
             ["ExternalProcessManager:Processes:0:FileName"] = "worker-a.exe",
-            ["ExternalProcessManager:Processes:0:Restart:MinBackoff"] = "00:02:00",
-            ["ExternalProcessManager:Processes:0:Restart:MaxBackoff"] = "00:01:00",
+            ["ExternalProcessManager:Processes:0:Restart:MinBackoffSeconds"] = "120",
+            ["ExternalProcessManager:Processes:0:Restart:MaxBackoffSeconds"] = "60",
         };
 
         EffectiveExternalProcessManagerConfiguration configuration = Validate(values);
 
         ExternalProcessValidationError error = Assert.Single(configuration.ValidationErrors);
         Assert.Equal("worker-a", error.Alias);
-        Assert.Equal("ExternalProcessManager:Processes:0:Restart:MinBackoff", error.Path);
-        Assert.Equal("MinBackoff must be less than or equal to MaxBackoff.", error.Message);
+        Assert.Equal("ExternalProcessManager:Processes:0:Restart:MinBackoffSeconds", error.Path);
+        Assert.Equal("MinBackoffSeconds must be less than or equal to MaxBackoffSeconds.", error.Message);
+    }
+
+    [Fact]
+    public void RestartDurationSecondsAreConvertedToTimeSpans()
+    {
+        Dictionary<string, string?> values = new(StringComparer.Ordinal)
+        {
+            ["ExternalProcessManager:Processes:0:Alias"] = "worker-a",
+            ["ExternalProcessManager:Processes:0:FileName"] = "worker-a.exe",
+            ["ExternalProcessManager:Processes:0:Restart:MinBackoffSeconds"] = "3",
+            ["ExternalProcessManager:Processes:0:Restart:MaxBackoffSeconds"] = "30",
+            ["ExternalProcessManager:Processes:0:Restart:StableRunDurationSeconds"] = "45",
+            ["ExternalProcessManager:Processes:0:Restart:GracefulStopTimeoutSeconds"] = "6",
+        };
+
+        EffectiveExternalProcessManagerConfiguration configuration = Validate(values);
+
+        EffectiveRestartConfiguration restart = Assert.Single(configuration.Processes).Restart;
+        Assert.Empty(configuration.InvalidProcesses);
+        Assert.Empty(configuration.ValidationErrors);
+        Assert.Equal(TimeSpan.FromSeconds(3), restart.MinBackoff);
+        Assert.Equal(TimeSpan.FromSeconds(30), restart.MaxBackoff);
+        Assert.Equal(TimeSpan.FromSeconds(45), restart.StableRunDuration);
+        Assert.Equal(TimeSpan.FromSeconds(6), restart.GracefulStopTimeout);
+    }
+
+    [Fact]
+    public void LegacyRestartDurationKeysAreIgnored()
+    {
+        Dictionary<string, string?> values = new(StringComparer.Ordinal)
+        {
+            ["ExternalProcessManager:Processes:0:Alias"] = "worker-a",
+            ["ExternalProcessManager:Processes:0:FileName"] = "worker-a.exe",
+            ["ExternalProcessManager:Processes:0:Restart:MinBackoff"] = "00:00:03",
+            ["ExternalProcessManager:Processes:0:Restart:MaxBackoff"] = "00:00:30",
+            ["ExternalProcessManager:Processes:0:Restart:StableRunDuration"] = "00:00:45",
+            ["ExternalProcessManager:Processes:0:Restart:GracefulStopTimeout"] = "00:00:06",
+        };
+
+        EffectiveExternalProcessManagerConfiguration configuration = Validate(values);
+
+        EffectiveRestartConfiguration restart = Assert.Single(configuration.Processes).Restart;
+        Assert.Empty(configuration.InvalidProcesses);
+        Assert.Empty(configuration.ValidationErrors);
+        Assert.Equal(TimeSpan.FromSeconds(2), restart.MinBackoff);
+        Assert.Equal(TimeSpan.FromMinutes(1), restart.MaxBackoff);
+        Assert.Equal(TimeSpan.FromMinutes(5), restart.StableRunDuration);
+        Assert.Equal(TimeSpan.FromSeconds(10), restart.GracefulStopTimeout);
     }
 
     [Fact]

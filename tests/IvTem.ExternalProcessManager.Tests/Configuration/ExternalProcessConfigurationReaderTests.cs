@@ -161,10 +161,10 @@ public sealed class ExternalProcessConfigurationReaderTests
             ["ExternalProcessManager:Processes:0:Alias"] = "worker-a",
             ["ExternalProcessManager:Processes:0:FileName"] = "worker-a.exe",
             ["ExternalProcessManager:Processes:0:Restart:Mode"] = "Always",
-            ["ExternalProcessManager:Processes:0:Restart:MinBackoff"] = "00:00:02",
-            ["ExternalProcessManager:Processes:0:Restart:MaxBackoff"] = "00:01:00",
-            ["ExternalProcessManager:Processes:0:Restart:StableRunDuration"] = "00:05:00",
-            ["ExternalProcessManager:Processes:0:Restart:GracefulStopTimeout"] = "00:00:10",
+            ["ExternalProcessManager:Processes:0:Restart:MinBackoffSeconds"] = "2",
+            ["ExternalProcessManager:Processes:0:Restart:MaxBackoffSeconds"] = "60",
+            ["ExternalProcessManager:Processes:0:Restart:StableRunDurationSeconds"] = "300",
+            ["ExternalProcessManager:Processes:0:Restart:GracefulStopTimeoutSeconds"] = "10",
             ["ExternalProcessManager:Processes:0:ScheduledRestarts:0:HourOfDay"] = "23:45",
             ["ExternalProcessManager:Processes:0:ScheduledRestarts:0:DayOfWeek"] = "Monday|Friday",
             ["ExternalProcessManager:Processes:0:ScheduledRestarts:1:HourOfDay"] = "04:00",
@@ -178,10 +178,10 @@ public sealed class ExternalProcessConfigurationReaderTests
 
         Assert.NotNull(process.Restart);
         Assert.Equal("Always", process.Restart.Mode.Value);
-        Assert.Equal("00:00:02", process.Restart.MinBackoff.Value);
-        Assert.Equal("00:01:00", process.Restart.MaxBackoff.Value);
-        Assert.Equal("00:05:00", process.Restart.StableRunDuration.Value);
-        Assert.Equal("00:00:10", process.Restart.GracefulStopTimeout.Value);
+        Assert.Equal("2", process.Restart.MinBackoffSeconds.Value);
+        Assert.Equal("60", process.Restart.MaxBackoffSeconds.Value);
+        Assert.Equal("300", process.Restart.StableRunDurationSeconds.Value);
+        Assert.Equal("10", process.Restart.GracefulStopTimeoutSeconds.Value);
         Assert.Collection(
             process.ScheduledRestarts,
             schedule =>

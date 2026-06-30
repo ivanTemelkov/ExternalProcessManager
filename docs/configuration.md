@@ -30,10 +30,10 @@ Each configured process is identified by `Alias`.
   },
   "Restart": {
     "Mode": "NonZeroExitCode",
-    "MinBackoff": "00:00:02",
-    "MaxBackoff": "00:01:00",
-    "StableRunDuration": "00:05:00",
-    "GracefulStopTimeout": "00:00:10"
+    "MinBackoffSeconds": 2,
+    "MaxBackoffSeconds": 60,
+    "StableRunDurationSeconds": 300,
+    "GracefulStopTimeoutSeconds": 10
   },
   "ScheduledRestarts": [
     { "HourOfDay": "23:45", "DayOfWeek": "All" },
@@ -66,12 +66,12 @@ Each configured process is identified by `Alias`.
 
 Backoff defaults should be conservative:
 
-- `MinBackoff`: `00:00:02`
-- `MaxBackoff`: `00:01:00`
-- `StableRunDuration`: `00:05:00`
-- `GracefulStopTimeout`: `00:00:10`
+- `MinBackoffSeconds`: `2`
+- `MaxBackoffSeconds`: `60`
+- `StableRunDurationSeconds`: `300`
+- `GracefulStopTimeoutSeconds`: `10`
 
-Backoff uses exponential growth from `MinBackoff` to `MaxBackoff`. It resets after the process stays alive for at least `StableRunDuration`.
+Backoff uses exponential growth from `MinBackoffSeconds` to `MaxBackoffSeconds`. It resets after the process stays alive for at least `StableRunDurationSeconds`.
 
 ## Scheduled Restart Configuration
 
@@ -99,11 +99,11 @@ Invalid conditions include:
 - Missing or duplicate alias.
 - Missing executable file name.
 - Invalid restart mode.
-- Invalid `TimeSpan` values.
+- Invalid restart duration seconds values.
 - Invalid `HourOfDay` format.
 - Invalid day-of-week value.
 - Negative or zero backoff values where a positive duration is required.
-- `MinBackoff` greater than `MaxBackoff`.
+- `MinBackoffSeconds` greater than `MaxBackoffSeconds`.
 
 ## Hot Reload Behavior
 

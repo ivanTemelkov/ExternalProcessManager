@@ -186,28 +186,28 @@ internal sealed class ExternalProcessConfigurationValidator
     {
         RawRestartConfiguration? restart = process.Restart;
         ExternalProcessRestartMode mode = ValidateRestartMode(restart?.Mode, alias, validationErrors);
-        TimeSpan minBackoff = ValidateDuration(
-            restart?.MinBackoff,
+        TimeSpan minBackoff = ValidateDurationSeconds(
+            restart?.MinBackoffSeconds,
             alias,
-            nameof(EffectiveRestartConfiguration.MinBackoff),
+            nameof(RawRestartConfiguration.MinBackoffSeconds),
             DefaultMinBackoff,
             validationErrors);
-        TimeSpan maxBackoff = ValidateDuration(
-            restart?.MaxBackoff,
+        TimeSpan maxBackoff = ValidateDurationSeconds(
+            restart?.MaxBackoffSeconds,
             alias,
-            nameof(EffectiveRestartConfiguration.MaxBackoff),
+            nameof(RawRestartConfiguration.MaxBackoffSeconds),
             DefaultMaxBackoff,
             validationErrors);
-        TimeSpan stableRunDuration = ValidateDuration(
-            restart?.StableRunDuration,
+        TimeSpan stableRunDuration = ValidateDurationSeconds(
+            restart?.StableRunDurationSeconds,
             alias,
-            nameof(EffectiveRestartConfiguration.StableRunDuration),
+            nameof(RawRestartConfiguration.StableRunDurationSeconds),
             DefaultStableRunDuration,
             validationErrors);
-        TimeSpan gracefulStopTimeout = ValidateDuration(
-            restart?.GracefulStopTimeout,
+        TimeSpan gracefulStopTimeout = ValidateDurationSeconds(
+            restart?.GracefulStopTimeoutSeconds,
             alias,
-            nameof(EffectiveRestartConfiguration.GracefulStopTimeout),
+            nameof(RawRestartConfiguration.GracefulStopTimeoutSeconds),
             DefaultGracefulStopTimeout,
             validationErrors);
 
@@ -216,8 +216,8 @@ internal sealed class ExternalProcessConfigurationValidator
             validationErrors.Add(new ExternalProcessValidationError
             {
                 Alias = alias,
-                Path = restart?.MinBackoff.Path ?? process.Path,
-                Message = "MinBackoff must be less than or equal to MaxBackoff.",
+                Path = restart?.MinBackoffSeconds.Path ?? process.Path,
+                Message = "MinBackoffSeconds must be less than or equal to MaxBackoffSeconds.",
             });
         }
 
@@ -278,43 +278,43 @@ internal sealed class ExternalProcessConfigurationValidator
         return false;
     }
 
-    private static TimeSpan ValidateDuration(
-        RawConfigurationValue? durationValue,
+    private static TimeSpan ValidateDurationSeconds(
+        RawConfigurationValue? secondsValue,
         string? alias,
         string name,
         TimeSpan defaultValue,
         List<ExternalProcessValidationError> validationErrors)
     {
-        string? rawDuration = NormalizeRequiredValue(durationValue?.Value);
+        string? rawSeconds = NormalizeRequiredValue(secondsValue?.Value);
 
-        if (rawDuration is null)
+        if (rawSeconds is null)
             return defaultValue;
 
-        if (TimeSpan.TryParse(rawDuration, CultureInfo.InvariantCulture, out TimeSpan duration) == false)
+        if (int.TryParse(rawSeconds, NumberStyles.Integer, CultureInfo.InvariantCulture, out int seconds) == false)
         {
             validationErrors.Add(new ExternalProcessValidationError
             {
                 Alias = alias,
-                Path = durationValue?.Path ?? string.Empty,
-                Message = $"{name} must be a valid TimeSpan.",
+                Path = secondsValue?.Path ?? string.Empty,
+                Message = $"{name} must be a whole number of seconds.",
             });
 
             return defaultValue;
         }
 
-        if (duration <= TimeSpan.Zero)
+        if (seconds <= 0)
         {
             validationErrors.Add(new ExternalProcessValidationError
             {
                 Alias = alias,
-                Path = durationValue?.Path ?? string.Empty,
+                Path = secondsValue?.Path ?? string.Empty,
                 Message = $"{name} must be greater than zero.",
             });
 
             return defaultValue;
         }
 
-        return duration;
+        return TimeSpan.FromSeconds(seconds);
     }
 
     private static EffectiveProcessArgumentMode GetArgumentMode(RawExternalProcessConfiguration process)

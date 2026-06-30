@@ -54,5 +54,5 @@ dotnet test
 
 ## Notes For Junior Developer
 
-- Do not parse restart modes, durations, days, or schedule times in this task.
+- Do not parse restart modes, duration seconds, days, or schedule times in this task.
 - Do not start any processes in this task.

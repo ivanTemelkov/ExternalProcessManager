@@ -6,11 +6,11 @@ internal sealed record RawRestartConfiguration
 
     public required RawConfigurationValue Mode { get; init; }
 
-    public required RawConfigurationValue MinBackoff { get; init; }
+    public required RawConfigurationValue MinBackoffSeconds { get; init; }
 
-    public required RawConfigurationValue MaxBackoff { get; init; }
+    public required RawConfigurationValue MaxBackoffSeconds { get; init; }
 
-    public required RawConfigurationValue StableRunDuration { get; init; }
+    public required RawConfigurationValue StableRunDurationSeconds { get; init; }
 
-    public required RawConfigurationValue GracefulStopTimeout { get; init; }
+    public required RawConfigurationValue GracefulStopTimeoutSeconds { get; init; }
 }

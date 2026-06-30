@@ -9,7 +9,7 @@ Stop managed processes gracefully when possible and force-kill the process tree 
 1. Add an internal process cleanup interface.
 2. Implement Windows cleanup behind that interface.
 3. Attempt console control graceful stop, such as CTRL+BREAK, when possible.
-4. Wait for `GracefulStopTimeout`.
+4. Wait for `GracefulStopTimeoutSeconds` as a normalized duration.
 5. If the process is still alive, kill the process tree.
 6. Report the cleanup outcome to the caller.
 7. Keep P/Invoke declarations internal and minimal.

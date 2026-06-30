@@ -12,10 +12,10 @@ Use this file to record common gotchas, decisions, and debugging notes discovere
 - Alias comparison is case-insensitive.
 - Default restart mode is `NonZeroExitCode`.
 - Default backoff values:
-  - `MinBackoff`: `00:00:02`
-  - `MaxBackoff`: `00:01:00`
-  - `StableRunDuration`: `00:05:00`
-  - `GracefulStopTimeout`: `00:00:10`
+  - `MinBackoffSeconds`: `2`
+  - `MaxBackoffSeconds`: `60`
+  - `StableRunDurationSeconds`: `300`
+  - `GracefulStopTimeoutSeconds`: `10`
 - Hot reload is best effort; one invalid entry must not block valid entries.
 - Invalid changed configuration keeps the last valid running configuration.
 - Diagnostics are snapshots, not public events.
@@ -227,6 +227,11 @@ YYYY-MM-DD:
 - Decision: The sample host resolves a side-by-side worker executable only from publish output, then falls back to the worker project's build output for normal `dotnet run`.
 - Reason: Native AOT publish places the worker executable beside the host, but normal build output can contain copied apphost stubs without the matching worker DLL; using those stubs causes immediate worker exits.
 - Alternatives considered: Always preferring side-by-side worker executables; rejected because normal `dotnet run` can select an incomplete copied apphost. Publishing only the host and expecting users to publish the worker manually; rejected because the AOT sample should be runnable from the host publish folder.
+
+2026-06-30:
+- Decision: Restart timing configuration uses integer seconds keys: `MinBackoffSeconds`, `MaxBackoffSeconds`, `StableRunDurationSeconds`, and `GracefulStopTimeoutSeconds`.
+- Reason: Configuration should avoid host-facing `TimeSpan` string parsing and make the unit explicit in the option names while preserving internal `TimeSpan` use for lifecycle code.
+- Alternatives considered: Accepting the old `TimeSpan` keys as aliases; rejected because v1 can take a breaking schema cleanup before compatibility commitments.
 
 ## Debugging Notes
 
