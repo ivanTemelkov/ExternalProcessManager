@@ -73,6 +73,16 @@ YYYY-MM-DD:
 - Reason: Configuration supports both string selectors and JSON-array day selectors, and preserving both shapes avoids treating an array as invalid during raw reading.
 - Alternatives considered: Reading only `DayOfWeek.Value`; rejected because array-shaped configuration would lose the configured day values before schedule parsing.
 
+2026-06-30:
+- Decision: Duplicate aliases invalidate every colliding entry instead of keeping the first configured process.
+- Reason: Alias is the public identity and runtime reconciliation key, so accepting one duplicate would make ordering determine which process wins.
+- Alternatives considered: Accepting the first valid alias and rejecting later duplicates; rejected because hot reload behavior would be harder to reason about.
+
+2026-06-30:
+- Decision: Task 04 effective scheduled restart records carry raw schedule strings forward without parsing hour or day values.
+- Reason: Task 05 explicitly owns schedule parsing and validation, while Task 04 still needs an internal normalized process model that preserves configured schedules for the next step.
+- Alternatives considered: Parsing schedules during Task 04; rejected to keep implementation tasks aligned with the documented plan.
+
 ## Debugging Notes
 
 Record repeatable commands, flaky test notes, and process-control observations.
