@@ -5,6 +5,30 @@ namespace IvTem.ExternalProcessManager.Configuration;
 
 internal sealed class ExternalProcessConfigurationValidator
 {
+    private static ImmutableArray<DayOfWeek> AllDays { get; } =
+    [
+        DayOfWeek.Sunday,
+        DayOfWeek.Monday,
+        DayOfWeek.Tuesday,
+        DayOfWeek.Wednesday,
+        DayOfWeek.Thursday,
+        DayOfWeek.Friday,
+        DayOfWeek.Saturday,
+    ];
+
+    private static ImmutableDictionary<string, DayOfWeek> DaysByName { get; } =
+        new Dictionary<string, DayOfWeek>(StringComparer.OrdinalIgnoreCase)
+        {
+            [nameof(DayOfWeek.Sunday)] = DayOfWeek.Sunday,
+            [nameof(DayOfWeek.Monday)] = DayOfWeek.Monday,
+            [nameof(DayOfWeek.Tuesday)] = DayOfWeek.Tuesday,
+            [nameof(DayOfWeek.Wednesday)] = DayOfWeek.Wednesday,
+            [nameof(DayOfWeek.Thursday)] = DayOfWeek.Thursday,
+            [nameof(DayOfWeek.Friday)] = DayOfWeek.Friday,
+            [nameof(DayOfWeek.Saturday)] = DayOfWeek.Saturday,
+        }
+        .ToImmutableDictionary(StringComparer.OrdinalIgnoreCase);
+
     private static TimeSpan DefaultMinBackoff => TimeSpan.FromSeconds(2);
 
     private static TimeSpan DefaultMaxBackoff => TimeSpan.FromMinutes(1);
@@ -80,6 +104,10 @@ internal sealed class ExternalProcessConfigurationValidator
             "FileName is required.",
             validationErrors);
         EffectiveRestartConfiguration restart = ValidateRestart(process, alias, validationErrors);
+        ImmutableArray<EffectiveScheduledRestartConfiguration> scheduledRestarts = ValidateScheduledRestarts(
+            process.ScheduledRestarts,
+            alias,
+            validationErrors);
 
         if (alias is null || fileName is null || validationErrors.Count > 0)
             return new ValidatedProcess(alias, EffectiveConfiguration: null, [.. validationErrors]);
@@ -98,7 +126,7 @@ internal sealed class ExternalProcessConfigurationValidator
                 WorkingDirectory = NormalizeOptionalValue(process.WorkingDirectory.Value),
                 Environment = NormalizeEnvironment(process.Environment),
                 Restart = restart,
-                ScheduledRestarts = NormalizeScheduledRestarts(process.ScheduledRestarts),
+                ScheduledRestarts = scheduledRestarts,
             },
             []);
     }
@@ -323,18 +351,141 @@ internal sealed class ExternalProcessConfigurationValidator
             item => item.Value.Value ?? string.Empty,
             StringComparer.OrdinalIgnoreCase);
 
-    private static ImmutableArray<EffectiveScheduledRestartConfiguration> NormalizeScheduledRestarts(
-        ImmutableArray<RawScheduledRestartConfiguration> scheduledRestarts)
-        =>
-        [
-            .. scheduledRestarts.Select(schedule => new EffectiveScheduledRestartConfiguration
+    private static ImmutableArray<EffectiveScheduledRestartConfiguration> ValidateScheduledRestarts(
+        ImmutableArray<RawScheduledRestartConfiguration> scheduledRestarts,
+        string? alias,
+        List<ExternalProcessValidationError> validationErrors)
+    {
+        List<EffectiveScheduledRestartConfiguration> effectiveSchedules = [];
+
+        foreach (RawScheduledRestartConfiguration schedule in scheduledRestarts)
+        {
+            TimeOnly? hourOfDay = ValidateHourOfDay(schedule.HourOfDay, alias, validationErrors);
+            ImmutableArray<DayOfWeek> days = ValidateDays(schedule, alias, validationErrors);
+
+            if (hourOfDay is null || days.IsEmpty)
+                continue;
+
+            effectiveSchedules.Add(new EffectiveScheduledRestartConfiguration
             {
                 Path = schedule.Path,
-                HourOfDay = NormalizeOptionalValue(schedule.HourOfDay.Value),
-                DayOfWeek = NormalizeOptionalValue(schedule.DayOfWeek.Value),
-                DayOfWeekValues = [.. schedule.DayOfWeekValues.Select(value => value.Value ?? string.Empty)],
-            }),
-        ];
+                HourOfDay = hourOfDay.Value,
+                Days = days,
+            });
+        }
+
+        return [.. effectiveSchedules];
+    }
+
+    private static TimeOnly? ValidateHourOfDay(
+        RawConfigurationValue hourOfDay,
+        string? alias,
+        List<ExternalProcessValidationError> validationErrors)
+    {
+        string? rawHourOfDay = NormalizeRequiredValue(hourOfDay.Value);
+
+        if (rawHourOfDay is not null
+            && TimeOnly.TryParseExact(
+                rawHourOfDay,
+                "HH:mm",
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.None,
+                out TimeOnly parsedHourOfDay))
+        {
+            return parsedHourOfDay;
+        }
+
+        validationErrors.Add(new ExternalProcessValidationError
+        {
+            Alias = alias,
+            Path = hourOfDay.Path,
+            Message = "HourOfDay must use HH:mm format.",
+        });
+
+        return null;
+    }
+
+    private static ImmutableArray<DayOfWeek> ValidateDays(
+        RawScheduledRestartConfiguration schedule,
+        string? alias,
+        List<ExternalProcessValidationError> validationErrors)
+    {
+        ImmutableArray<DayToken> tokens = GetDayTokens(schedule);
+
+        if (tokens.IsEmpty)
+        {
+            validationErrors.Add(new ExternalProcessValidationError
+            {
+                Alias = alias,
+                Path = schedule.DayOfWeek.Path,
+                Message = "DayOfWeek is required.",
+            });
+
+            return [];
+        }
+
+        if (tokens.Length == 1
+            && string.Equals(tokens[0].Value, "All", StringComparison.OrdinalIgnoreCase))
+        {
+            return AllDays;
+        }
+
+        List<DayOfWeek> days = [];
+        HashSet<DayOfWeek> seenDays = [];
+
+        foreach (DayToken token in tokens)
+        {
+            if (DaysByName.TryGetValue(token.Value, out DayOfWeek dayOfWeek))
+            {
+                if (seenDays.Add(dayOfWeek))
+                    days.Add(dayOfWeek);
+
+                continue;
+            }
+
+            validationErrors.Add(new ExternalProcessValidationError
+            {
+                Alias = alias,
+                Path = token.Path,
+                Message = "DayOfWeek must be All or one or more English day names.",
+            });
+        }
+
+        return [.. days];
+    }
+
+    private static ImmutableArray<DayToken> GetDayTokens(RawScheduledRestartConfiguration schedule)
+    {
+        List<DayToken> tokens = [];
+
+        if (schedule.DayOfWeekValues.IsEmpty == false)
+        {
+            foreach (RawConfigurationValue dayOfWeekValue in schedule.DayOfWeekValues)
+            {
+                AddDayTokens(dayOfWeekValue, tokens);
+            }
+
+            return [.. tokens];
+        }
+
+        AddDayTokens(schedule.DayOfWeek, tokens);
+        return [.. tokens];
+    }
+
+    private static void AddDayTokens(RawConfigurationValue value, List<DayToken> tokens)
+    {
+        string? rawValue = NormalizeRequiredValue(value.Value);
+
+        if (rawValue is null)
+            return;
+
+        string[] segments = rawValue.Split([',', '|'], StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+
+        foreach (string segment in segments)
+        {
+            tokens.Add(new DayToken(value.Path, segment));
+        }
+    }
 
     private static string? NormalizeRequiredValue(string? value)
     {
@@ -356,4 +507,8 @@ internal sealed class ExternalProcessConfigurationValidator
         string? Alias,
         EffectiveExternalProcessConfiguration? EffectiveConfiguration,
         ImmutableArray<ExternalProcessValidationError> ValidationErrors);
+
+    private sealed record DayToken(
+        string Path,
+        string Value);
 }

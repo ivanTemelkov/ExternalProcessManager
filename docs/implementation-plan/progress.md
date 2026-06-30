@@ -16,7 +16,7 @@ Statuses:
 | 02 | Define public contracts | Implemented | Public manager contract, diagnostics snapshots, status enum, and DI extension added. |
 | 03 | Add configuration reader and raw models | Implemented | Raw reader preserves values and configuration paths. |
 | 04 | Add validation and effective configuration normalization | Implemented | Produces effective configs plus invalid entries and validation errors. |
-| 05 | Implement day and schedule parsing | Not Started | |
+| 05 | Implement day and schedule parsing | Implemented | Parses scheduled restart hour and day selectors into internal records. |
 | 06 | Implement scheduler calculation | Not Started | |
 | 07 | Implement restart backoff policy | Not Started | |
 | 08 | Implement process launcher abstraction | Not Started | |
@@ -75,3 +75,10 @@ YYYY-MM-DD:
 - Verification: `dotnet test IvTem.ExternalProcessManager.slnx` succeeded with 0 warnings and 0 errors.
 - Follow-up: Continue with Task 05.
 - Memory: Added decisions for duplicate-alias handling and carrying scheduled restart values forward unparsed until Task 05.
+
+2026-06-30:
+- Task: 05 - Implement day and schedule parsing.
+- Change: Replaced raw effective scheduled restart strings with parsed `TimeOnly` and `DayOfWeek` records; validation now accepts exact `HH:mm`, `All`, single day names, comma-separated names, pipe-separated names, arrays, and duplicate day collapse while reporting invalid hour/day paths.
+- Verification: `dotnet test IvTem.ExternalProcessManager.slnx` succeeded with 0 warnings and 0 errors.
+- Follow-up: Continue with Task 06.
+- Memory: Added decisions for parsed schedule representation and `All` expansion.

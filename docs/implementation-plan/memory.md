@@ -83,6 +83,16 @@ YYYY-MM-DD:
 - Reason: Task 05 explicitly owns schedule parsing and validation, while Task 04 still needs an internal normalized process model that preserves configured schedules for the next step.
 - Alternatives considered: Parsing schedules during Task 04; rejected to keep implementation tasks aligned with the documented plan.
 
+2026-06-30:
+- Decision: Effective scheduled restart records store `HourOfDay` as `TimeOnly` and days as `ImmutableArray<DayOfWeek>`, with `All` expanded to the seven `DayOfWeek` values.
+- Reason: Task 06 scheduler calculation should consume validated values without reparsing configuration text.
+- Alternatives considered: Keeping the original strings plus parsed companion values; rejected because it would allow later runtime code to accidentally use unvalidated schedule text.
+
+2026-06-30:
+- Decision: Day selectors from configuration arrays are tokenized with the same comma and pipe separator support as scalar selectors, and duplicates are collapsed while preserving first-seen order.
+- Reason: The reader preserves both scalar and array shapes, and using one parser keeps schedule behavior consistent across providers.
+- Alternatives considered: Treating each array item as exactly one day; rejected because it would make arrays less tolerant than equivalent scalar configuration.
+
 ## Debugging Notes
 
 Record repeatable commands, flaky test notes, and process-control observations.

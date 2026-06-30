@@ -216,6 +216,173 @@ public sealed class ExternalProcessConfigurationValidatorTests
         Assert.Equal("worker-b", configuration.InvalidProcesses[0].Alias);
     }
 
+    [Fact]
+    public void ScheduledRestartAllDaysParses()
+    {
+        Dictionary<string, string?> values = CreateScheduledRestartValues(
+            "23:45",
+            "All");
+
+        EffectiveScheduledRestartConfiguration schedule = GetSingleSchedule(values);
+
+        Assert.Equal(new TimeOnly(23, 45), schedule.HourOfDay);
+        Assert.Equal(7, schedule.Days.Length);
+        Assert.Contains(DayOfWeek.Sunday, schedule.Days);
+        Assert.Contains(DayOfWeek.Saturday, schedule.Days);
+    }
+
+    [Fact]
+    public void ScheduledRestartSingleDayParses()
+    {
+        Dictionary<string, string?> values = CreateScheduledRestartValues(
+            "04:00",
+            "Monday");
+
+        EffectiveScheduledRestartConfiguration schedule = GetSingleSchedule(values);
+
+        DayOfWeek day = Assert.Single(schedule.Days);
+        Assert.Equal(DayOfWeek.Monday, day);
+    }
+
+    [Fact]
+    public void ScheduledRestartCommaSeparatedDaysParse()
+    {
+        Dictionary<string, string?> values = CreateScheduledRestartValues(
+            "04:00",
+            "Monday,Friday");
+
+        EffectiveScheduledRestartConfiguration schedule = GetSingleSchedule(values);
+
+        Assert.Collection(
+            schedule.Days,
+            day => Assert.Equal(DayOfWeek.Monday, day),
+            day => Assert.Equal(DayOfWeek.Friday, day));
+    }
+
+    [Fact]
+    public void ScheduledRestartPipeSeparatedDaysParse()
+    {
+        Dictionary<string, string?> values = CreateScheduledRestartValues(
+            "04:00",
+            "Monday|Friday");
+
+        EffectiveScheduledRestartConfiguration schedule = GetSingleSchedule(values);
+
+        Assert.Collection(
+            schedule.Days,
+            day => Assert.Equal(DayOfWeek.Monday, day),
+            day => Assert.Equal(DayOfWeek.Friday, day));
+    }
+
+    [Fact]
+    public void ScheduledRestartArrayDaysParse()
+    {
+        Dictionary<string, string?> values = CreateScheduledRestartValues(
+            "04:00",
+            dayOfWeek: null);
+        values["ExternalProcessManager:Processes:0:ScheduledRestarts:0:DayOfWeek:0"] = "Monday";
+        values["ExternalProcessManager:Processes:0:ScheduledRestarts:0:DayOfWeek:1"] = "Friday";
+
+        EffectiveScheduledRestartConfiguration schedule = GetSingleSchedule(values);
+
+        Assert.Collection(
+            schedule.Days,
+            day => Assert.Equal(DayOfWeek.Monday, day),
+            day => Assert.Equal(DayOfWeek.Friday, day));
+    }
+
+    [Fact]
+    public void ScheduledRestartDuplicateDaysCollapse()
+    {
+        Dictionary<string, string?> values = CreateScheduledRestartValues(
+            "04:00",
+            "Monday,monday|Friday|Monday");
+
+        EffectiveScheduledRestartConfiguration schedule = GetSingleSchedule(values);
+
+        Assert.Collection(
+            schedule.Days,
+            day => Assert.Equal(DayOfWeek.Monday, day),
+            day => Assert.Equal(DayOfWeek.Friday, day));
+    }
+
+    [Fact]
+    public void InvalidScheduledRestartDayFails()
+    {
+        Dictionary<string, string?> values = CreateScheduledRestartValues(
+            "04:00",
+            "Funday");
+
+        EffectiveExternalProcessManagerConfiguration configuration = Validate(values);
+
+        Assert.Empty(configuration.Processes);
+        InvalidExternalProcessConfiguration invalidProcess = Assert.Single(configuration.InvalidProcesses);
+        ExternalProcessValidationError error = Assert.Single(invalidProcess.ValidationErrors);
+        Assert.Equal("worker-a", error.Alias);
+        Assert.Equal("ExternalProcessManager:Processes:0:ScheduledRestarts:0:DayOfWeek", error.Path);
+        Assert.Equal("DayOfWeek must be All or one or more English day names.", error.Message);
+    }
+
+    [Fact]
+    public void InvalidScheduledRestartHourFails()
+    {
+        Dictionary<string, string?> values = CreateScheduledRestartValues(
+            "25:00",
+            "Monday");
+
+        EffectiveExternalProcessManagerConfiguration configuration = Validate(values);
+
+        Assert.Empty(configuration.Processes);
+        InvalidExternalProcessConfiguration invalidProcess = Assert.Single(configuration.InvalidProcesses);
+        ExternalProcessValidationError error = Assert.Single(invalidProcess.ValidationErrors);
+        Assert.Equal("worker-a", error.Alias);
+        Assert.Equal("ExternalProcessManager:Processes:0:ScheduledRestarts:0:HourOfDay", error.Path);
+        Assert.Equal("HourOfDay must use HH:mm format.", error.Message);
+    }
+
+    [Fact]
+    public void ScheduledRestartHourWithSecondsFails()
+    {
+        Dictionary<string, string?> values = CreateScheduledRestartValues(
+            "04:00:00",
+            "Monday");
+
+        EffectiveExternalProcessManagerConfiguration configuration = Validate(values);
+
+        Assert.Empty(configuration.Processes);
+        ExternalProcessValidationError error = Assert.Single(configuration.ValidationErrors);
+        Assert.Equal("HourOfDay must use HH:mm format.", error.Message);
+    }
+
+    [Fact]
+    public void MultipleScheduledRestartEntriesParse()
+    {
+        Dictionary<string, string?> values = CreateScheduledRestartValues(
+            "23:45",
+            "All");
+        values["ExternalProcessManager:Processes:0:ScheduledRestarts:1:HourOfDay"] = "04:00";
+        values["ExternalProcessManager:Processes:0:ScheduledRestarts:1:DayOfWeek"] = "Monday|Friday";
+
+        EffectiveExternalProcessManagerConfiguration configuration = Validate(values);
+
+        EffectiveExternalProcessConfiguration process = Assert.Single(configuration.Processes);
+        Assert.Collection(
+            process.ScheduledRestarts,
+            schedule =>
+            {
+                Assert.Equal(new TimeOnly(23, 45), schedule.HourOfDay);
+                Assert.Equal(7, schedule.Days.Length);
+            },
+            schedule =>
+            {
+                Assert.Equal(new TimeOnly(4, 0), schedule.HourOfDay);
+                Assert.Collection(
+                    schedule.Days,
+                    day => Assert.Equal(DayOfWeek.Monday, day),
+                    day => Assert.Equal(DayOfWeek.Friday, day));
+            });
+    }
+
     private static EffectiveExternalProcessManagerConfiguration Validate(Dictionary<string, string?> values)
     {
         IConfigurationSection section = new ConfigurationBuilder()
@@ -226,5 +393,31 @@ public sealed class ExternalProcessConfigurationValidatorTests
         ExternalProcessConfigurationValidator validator = new();
 
         return validator.Validate(reader.Read(section));
+    }
+
+    private static Dictionary<string, string?> CreateScheduledRestartValues(string hourOfDay, string? dayOfWeek)
+    {
+        Dictionary<string, string?> values = new(StringComparer.Ordinal)
+        {
+            ["ExternalProcessManager:Processes:0:Alias"] = "worker-a",
+            ["ExternalProcessManager:Processes:0:FileName"] = "worker-a.exe",
+            ["ExternalProcessManager:Processes:0:ScheduledRestarts:0:HourOfDay"] = hourOfDay,
+        };
+
+        if (dayOfWeek is not null)
+            values["ExternalProcessManager:Processes:0:ScheduledRestarts:0:DayOfWeek"] = dayOfWeek;
+
+        return values;
+    }
+
+    private static EffectiveScheduledRestartConfiguration GetSingleSchedule(Dictionary<string, string?> values)
+    {
+        EffectiveExternalProcessManagerConfiguration configuration = Validate(values);
+
+        Assert.Empty(configuration.InvalidProcesses);
+        Assert.Empty(configuration.ValidationErrors);
+
+        EffectiveExternalProcessConfiguration process = Assert.Single(configuration.Processes);
+        return Assert.Single(process.ScheduledRestarts);
     }
 }
