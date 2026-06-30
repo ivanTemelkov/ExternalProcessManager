@@ -1,0 +1,88 @@
+# Build output
+[Bb]in/
+[Oo]bj/
+[Aa]rtifacts/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+
+# Visual Studio
+.vs/
+*.user
+*.rsuser
+*.suo
+*.userosscache
+*.sln.docstates
+*.vssscc
+*.vspscc
+*.scc
+
+# Visual Studio Code
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+
+# JetBrains Rider
+.idea/
+*.sln.iml
+
+# .NET tools and packages
+.dotnet/
+.nuget/
+packages/
+*.nupkg
+*.snupkg
+project.lock.json
+project.fragment.lock.json
+artifacts-obj/
+
+# Test and coverage output
+[Tt]est[Rr]esult*/
+[Tt]est[Rr]esults*/
+coverage/
+coverage.*/
+*.coverage
+*.coveragexml
+*.trx
+*.cobertura.xml
+*.opencover.xml
+*.lcov
+
+# Logs and diagnostics
+*.log
+*.binlog
+*.etl
+*.dump
+
+# Publish and deployment output
+publish/
+app.publish/
+*.publishsettings
+
+# Native AOT and generated files
+*.map
+*.pdb
+*.ilk
+*.iobj
+*.ipdb
+*.rsp
+
+# Local environment files
+.env
+.env.*
+!.env.example
+local.settings.json
+
+# OS files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
