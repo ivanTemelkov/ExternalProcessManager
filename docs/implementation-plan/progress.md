@@ -19,7 +19,7 @@ Statuses:
 | 05 | Implement day and schedule parsing | Implemented | Parses scheduled restart hour and day selectors into internal records. |
 | 06 | Implement scheduler calculation | Implemented | Deterministic local-time calculator with DST gap/repeat behavior. |
 | 07 | Implement restart backoff policy | Implemented | Per-alias state object computes exponential delays from explicit runtime timestamps. |
-| 08 | Implement process launcher abstraction | Not Started | |
+| 08 | Implement process launcher abstraction | Implemented | Internal launcher maps effective config to `ProcessStartInfo` and returns disposable observable handles. |
 | 09 | Implement Windows cleanup abstraction | Not Started | |
 | 10 | Implement per-alias supervisor | Not Started | |
 | 11 | Implement manager reconciliation and hot reload | Not Started | |
@@ -96,3 +96,10 @@ YYYY-MM-DD:
 - Verification: `dotnet test IvTem.ExternalProcessManager.slnx` succeeded with 0 warnings and 0 errors.
 - Follow-up: Continue with Task 08.
 - Memory: Added decision for explicit timestamp-driven backoff state reset.
+
+2026-06-30:
+- Task: 08 - Implement process launcher abstraction.
+- Change: Added internal `IProcessLauncher` / `IProcessHandle` contracts, a Windows `ProcessStartInfo` mapper and launcher, disposable process handles with process ID/start time/exit observation, DI registration, and mapping plus real-exit tests.
+- Verification: `dotnet test IvTem.ExternalProcessManager.slnx` succeeded with 0 warnings and 0 errors.
+- Follow-up: Continue with Task 09; diagnostics-specific process ID integration remains for the later manager/diagnostics tasks.
+- Memory: Added decisions for inspectable start-info mapping and canceling uncompleted exit observation when handles are disposed.

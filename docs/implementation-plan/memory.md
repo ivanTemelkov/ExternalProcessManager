@@ -118,6 +118,16 @@ YYYY-MM-DD:
 - Reason: Task 07 requires deterministic unit tests and future supervisors already have process start and exit observations available.
 - Alternatives considered: Injecting `ILocalClock` directly into the backoff state; rejected because the state only needs elapsed runtime observations and should remain independent of scheduling/local-time concerns.
 
+2026-06-30:
+- Decision: Keep `ProcessStartInfo` mapping in an internal `WindowsProcessStartInfoFactory` used by `WindowsProcessLauncher`.
+- Reason: Task 08 mapping rules can be tested without starting a process, while actual `Process` construction stays isolated inside the launcher implementation.
+- Alternatives considered: Testing only through launched processes; rejected because argument/environment/working-directory mapping would be slower and more fragile to inspect.
+
+2026-06-30:
+- Decision: Disposing a process handle cancels its exit-observation task only if an exit result has not already been recorded.
+- Reason: Awaiters should not hang forever when a handle is disposed before process exit, and completed exit observations should remain stable.
+- Alternatives considered: Leaving the task incomplete on dispose; rejected because future supervisors may dispose handles during lifecycle transitions.
+
 ## Debugging Notes
 
 Record repeatable commands, flaky test notes, and process-control observations.

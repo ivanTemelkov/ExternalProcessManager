@@ -1,3 +1,4 @@
+using IvTem.ExternalProcessManager.Lifecycle;
 using IvTem.ExternalProcessManager.Scheduling;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -18,6 +19,7 @@ public static class ServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(section);
 
         services.TryAddSingleton<ILocalClock, SystemLocalClock>();
+        services.TryAddSingleton<IProcessLauncher, WindowsProcessLauncher>();
         services.TryAddSingleton<IExternalProcessManager, ExternalProcessManager>();
 
         return services;
