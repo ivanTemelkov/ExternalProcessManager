@@ -20,6 +20,7 @@ internal sealed partial class WindowsProcessCleanup : IProcessCleanup
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(handle);
+        WindowsPlatform.ThrowIfUnsupported();
 
         if (handle.Exited.IsCompleted)
         {

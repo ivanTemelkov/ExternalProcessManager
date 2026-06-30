@@ -8,6 +8,7 @@ internal sealed class WindowsProcessLauncher : IProcessLauncher
     public IProcessHandle Launch(EffectiveExternalProcessConfiguration configuration)
     {
         ArgumentNullException.ThrowIfNull(configuration);
+        WindowsPlatform.ThrowIfUnsupported();
 
         TaskCompletionSource<ProcessExitResult> exitCompletion = new(TaskCreationOptions.RunContinuationsAsynchronously);
         ProcessStartInfo startInfo = WindowsProcessStartInfoFactory.Create(configuration);

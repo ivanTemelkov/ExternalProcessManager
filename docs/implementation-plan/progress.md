@@ -29,7 +29,7 @@ Statuses:
 | 15 | Add manual lifecycle idempotency and disposal | Implemented | Manager start/stop are covered as idempotent, and disposal stops retained supervisors before disposing them. |
 | 16 | Build integration test helper executable | Implemented | Helper supports deterministic exit, delayed exit, run-until-killed, child process, graceful CTRL+BREAK, and forced-cleanup modes. |
 | 17 | Add logging coverage | Implemented | Lifecycle, validation, restart, scheduled restart, hot-reload, and cleanup outcomes are logged through `ILogger`. |
-| 18 | Run final analyzer and platform pass | Not Started | |
+| 18 | Run final analyzer and platform pass | Implemented | Build/test/analyzer pass is clean; public surface and platform behavior reviewed. |
 
 ## Progress Notes
 
@@ -166,3 +166,10 @@ YYYY-MM-DD:
 - Verification: `rg "Console\.|File\.|EventLog|Telemetry|Trace\." src/IvTem.ExternalProcessManager -n` found no direct logging sinks; `dotnet test IvTem.ExternalProcessManager.slnx` succeeded with 101 passing tests; `dotnet build IvTem.ExternalProcessManager.slnx` succeeded with 0 warnings and 0 errors.
 - Follow-up: Continue with Task 18 for the final analyzer and platform pass.
 - Memory: Added decision for source-generated structured logs and logging registration without providers.
+
+2026-06-30:
+- Task: 18 - Run final analyzer and platform pass.
+- Change: Reviewed analyzer/trim/AOT settings, public API shape, suppression usage, direct sink usage, diagnostics surface, and Windows-only behavior; added an internal platform guard so launch and cleanup fail fast with `PlatformNotSupportedException` on unsupported OSes before Windows interop is reached.
+- Verification: `dotnet build IvTem.ExternalProcessManager.slnx` succeeded with 0 warnings and 0 errors; `dotnet test IvTem.ExternalProcessManager.slnx` succeeded with 101 passing tests; public API scan shows only `ExternalProcessManagerSnapshot`, `ExternalProcessSnapshot`, `ExternalProcessStatus`, `ExternalProcessValidationError`, `IExternalProcessManager`, and `ServiceCollectionExtensions`; suppression scan found no production suppressions; direct sink scan found no `Console`, `File`, `EventLog`, telemetry, or trace usage in the library.
+- Follow-up: v1 implementation tasks are complete.
+- Memory: Added decision for explicit runtime platform guards at Windows process launch and cleanup boundaries.
