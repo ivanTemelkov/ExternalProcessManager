@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using System.ComponentModel;
 using IvTem.ExternalProcessManager.Configuration;
+using IvTem.ExternalProcessManager.Scheduling;
 
 namespace IvTem.ExternalProcessManager.Lifecycle;
 
@@ -10,17 +11,21 @@ internal sealed class ExternalProcessSupervisor : IExternalProcessSupervisor
         EffectiveExternalProcessConfiguration configuration,
         IProcessLauncher launcher,
         IProcessCleanup cleanup,
-        IRestartDelay restartDelay)
+        IRestartDelay restartDelay,
+        ILocalClock clock)
     {
         ArgumentNullException.ThrowIfNull(configuration);
         ArgumentNullException.ThrowIfNull(launcher);
         ArgumentNullException.ThrowIfNull(cleanup);
         ArgumentNullException.ThrowIfNull(restartDelay);
+        ArgumentNullException.ThrowIfNull(clock);
 
         Configuration = configuration;
         Launcher = launcher;
         Cleanup = cleanup;
         RestartDelay = restartDelay;
+        Clock = clock;
+        ScheduledRestartCalculator = new ScheduledRestartCalculator(clock.TimeZone);
         BackoffState = new RestartBackoffState(configuration.Restart);
         Snapshot = CreateInitialSnapshot(configuration);
         Status = ExternalProcessStatus.NotStarted;
@@ -33,6 +38,10 @@ internal sealed class ExternalProcessSupervisor : IExternalProcessSupervisor
     private IProcessCleanup Cleanup { get; }
 
     private IRestartDelay RestartDelay { get; }
+
+    private ILocalClock Clock { get; }
+
+    private ScheduledRestartCalculator ScheduledRestartCalculator { get; }
 
     private RestartBackoffState BackoffState { get; }
 
@@ -56,7 +65,10 @@ internal sealed class ExternalProcessSupervisor : IExternalProcessSupervisor
     {
         lock (SnapshotLock)
         {
-            return Snapshot;
+            return Snapshot with
+            {
+                NextScheduledRestart = GetNextScheduledRestart(),
+            };
         }
     }
 
@@ -357,9 +369,15 @@ internal sealed class ExternalProcessSupervisor : IExternalProcessSupervisor
     {
         lock (SnapshotLock)
         {
-            Snapshot = update(Snapshot);
+            Snapshot = update(Snapshot) with
+            {
+                NextScheduledRestart = GetNextScheduledRestart(),
+            };
         }
     }
+
+    private DateTimeOffset? GetNextScheduledRestart()
+        => ScheduledRestartCalculator.GetNextOccurrence(Clock.Now, Configuration.ScheduledRestarts);
 
     private void ThrowIfDisposed()
     {

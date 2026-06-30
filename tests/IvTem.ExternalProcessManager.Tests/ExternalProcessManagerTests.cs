@@ -7,6 +7,21 @@ namespace IvTem.ExternalProcessManager.Tests;
 public sealed class ExternalProcessManagerTests
 {
     [Fact]
+    public void GetSnapshotBeforeStartIsValid()
+    {
+        TestConfigurationSource source = new(CreateConfiguration(("worker-a", "worker-a.exe")));
+        IConfigurationRoot configuration = BuildConfiguration(source);
+        FakeSupervisorFactory supervisorFactory = new();
+        using ExternalProcessManager manager = CreateManager(configuration, supervisorFactory);
+
+        ExternalProcessManagerSnapshot snapshot = manager.GetSnapshot();
+
+        Assert.False(snapshot.IsRunning);
+        Assert.Empty(snapshot.Processes);
+        Assert.Empty(snapshot.ValidationErrors);
+    }
+
+    [Fact]
     public async Task StartStartsValidAliases()
     {
         TestConfigurationSource source = new(CreateConfiguration(("worker-a", "worker-a.exe")));
@@ -19,6 +34,42 @@ public sealed class ExternalProcessManagerTests
         FakeSupervisor supervisor = Assert.Single(supervisorFactory.Supervisors);
         Assert.Equal("worker-a", supervisor.Configuration.Alias);
         Assert.Equal(1, supervisor.StartCount);
+        Assert.Equal(ExternalProcessStatus.Running, manager.GetSnapshot().Processes[0].Status);
+    }
+
+    [Fact]
+    public async Task StopKeepsStoppedProcessDiagnostics()
+    {
+        TestConfigurationSource source = new(CreateConfiguration(("worker-a", "worker-a.exe")));
+        IConfigurationRoot configuration = BuildConfiguration(source);
+        FakeSupervisorFactory supervisorFactory = new();
+        using ExternalProcessManager manager = CreateManager(configuration, supervisorFactory);
+        await manager.StartAsync();
+
+        await manager.StopAsync();
+
+        ExternalProcessManagerSnapshot snapshot = manager.GetSnapshot();
+        ExternalProcessSnapshot process = Assert.Single(snapshot.Processes);
+        Assert.False(snapshot.IsRunning);
+        Assert.Equal("worker-a", process.Alias);
+        Assert.Equal(ExternalProcessStatus.Stopped, process.Status);
+    }
+
+    [Fact]
+    public async Task StartAfterStopStartsExistingSupervisors()
+    {
+        TestConfigurationSource source = new(CreateConfiguration(("worker-a", "worker-a.exe")));
+        IConfigurationRoot configuration = BuildConfiguration(source);
+        FakeSupervisorFactory supervisorFactory = new();
+        using ExternalProcessManager manager = CreateManager(configuration, supervisorFactory);
+        await manager.StartAsync();
+        await manager.StopAsync();
+        FakeSupervisor supervisor = Assert.Single(supervisorFactory.Supervisors);
+
+        await manager.StartAsync();
+
+        Assert.Single(supervisorFactory.Supervisors);
+        Assert.Equal(2, supervisor.StartCount);
         Assert.Equal(ExternalProcessStatus.Running, manager.GetSnapshot().Processes[0].Status);
     }
 
@@ -139,6 +190,59 @@ public sealed class ExternalProcessManagerTests
         Assert.Equal(ExternalProcessStatus.Running, snapshot.Status);
         Assert.Equal("worker-a.exe", snapshot.FileName);
         Assert.Single(snapshot.ValidationErrors);
+    }
+
+    [Fact]
+    public async Task GetSnapshotReflectsSupervisorStateChanges()
+    {
+        TestConfigurationSource source = new(CreateConfiguration(("worker-a", "worker-a.exe")));
+        IConfigurationRoot configuration = BuildConfiguration(source);
+        FakeSupervisorFactory supervisorFactory = new();
+        using ExternalProcessManager manager = CreateManager(configuration, supervisorFactory);
+        await manager.StartAsync();
+        FakeSupervisor supervisor = Assert.Single(supervisorFactory.Supervisors);
+
+        supervisor.SetStatus(ExternalProcessStatus.RestartPending);
+
+        ExternalProcessSnapshot snapshot = Assert.Single(manager.GetSnapshot().Processes);
+        Assert.Equal(ExternalProcessStatus.RestartPending, snapshot.Status);
+    }
+
+    [Fact]
+    public async Task ConcurrentSnapshotCallsDoNotThrowDuringLifecycleOperations()
+    {
+        TestConfigurationSource source = new(CreateConfiguration(("worker-a", "worker-a.exe"), ("worker-b", "worker-b.exe")));
+        IConfigurationRoot configuration = BuildConfiguration(source);
+        FakeSupervisorFactory supervisorFactory = new();
+        using ExternalProcessManager manager = CreateManager(configuration, supervisorFactory);
+        await manager.StartAsync();
+
+        Task snapshotReads = Task.Run(() =>
+        {
+            for (int i = 0; i < 100; i++)
+            {
+                _ = manager.GetSnapshot();
+            }
+        });
+
+        await Task.WhenAll(manager.StopAsync(), snapshotReads);
+
+        Assert.False(manager.GetSnapshot().IsRunning);
+    }
+
+    [Fact]
+    public async Task SnapshotCollectionsCannotBeMutatedByCallers()
+    {
+        TestConfigurationSource source = new(CreateConfiguration(("worker-a", null)));
+        IConfigurationRoot configuration = BuildConfiguration(source);
+        FakeSupervisorFactory supervisorFactory = new();
+        using ExternalProcessManager manager = CreateManager(configuration, supervisorFactory);
+
+        await manager.StartAsync();
+
+        ExternalProcessManagerSnapshot snapshot = manager.GetSnapshot();
+        Assert.Throws<NotSupportedException>(() => ((IList<ExternalProcessSnapshot>)snapshot.Processes).Clear());
+        Assert.Throws<NotSupportedException>(() => ((IList<ExternalProcessValidationError>)snapshot.ValidationErrors).Clear());
     }
 
     [Fact]
@@ -302,6 +406,9 @@ public sealed class ExternalProcessManagerTests
 
         public void Dispose()
             => IsDisposed = true;
+
+        public void SetStatus(ExternalProcessStatus status)
+            => Snapshot = CreateSnapshot(status);
 
         private ExternalProcessSnapshot CreateSnapshot(ExternalProcessStatus status)
             => new()

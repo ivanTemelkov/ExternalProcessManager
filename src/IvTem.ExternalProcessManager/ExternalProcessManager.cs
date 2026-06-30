@@ -41,6 +41,10 @@ internal sealed class ExternalProcessManager : IExternalProcessManager, IDisposa
 
     private ExternalProcessManagerSnapshot Snapshot { get; set; }
 
+    private ImmutableArray<InvalidExternalProcessConfiguration> InvalidProcesses { get; set; } = [];
+
+    private ImmutableArray<ExternalProcessValidationError> ValidationErrors { get; set; } = [];
+
     private IDisposable? ConfigurationChangeRegistration { get; set; }
 
     private bool IsRunning { get; set; }
@@ -66,7 +70,7 @@ internal sealed class ExternalProcessManager : IExternalProcessManager, IDisposa
 
             EffectiveExternalProcessManagerConfiguration configuration = ReadConfiguration();
 
-            await ApplyConfiguration(configuration, cancellationToken)
+            await ApplyConfiguration(configuration, startExistingSupervisors: true, cancellationToken)
                 .ConfigureAwait(continueOnCapturedContext: false);
         }
         finally
@@ -88,7 +92,7 @@ internal sealed class ExternalProcessManager : IExternalProcessManager, IDisposa
 
             if (IsRunning == false)
             {
-                PublishSnapshot(invalidProcesses: [], validationErrors: []);
+                RefreshSnapshot();
                 return;
             }
 
@@ -96,16 +100,15 @@ internal sealed class ExternalProcessManager : IExternalProcessManager, IDisposa
             ConfigurationChangeRegistration?.Dispose();
             ConfigurationChangeRegistration = null;
 
-            foreach (ManagedProcessEntry entry in Supervisors.Values)
+            foreach (ManagedProcessEntry entry in GetSupervisorEntries())
             {
                 await entry.Supervisor.Stop(cancellationToken)
                     .ConfigureAwait(continueOnCapturedContext: false);
 
-                entry.Supervisor.Dispose();
+                RefreshSnapshot();
             }
 
-            Supervisors.Clear();
-            PublishSnapshot(invalidProcesses: [], validationErrors: []);
+            RefreshSnapshot();
         }
         finally
         {
@@ -117,6 +120,7 @@ internal sealed class ExternalProcessManager : IExternalProcessManager, IDisposa
     {
         lock (SnapshotLock)
         {
+            RefreshSnapshotCore();
             return Snapshot;
         }
     }
@@ -129,12 +133,16 @@ internal sealed class ExternalProcessManager : IExternalProcessManager, IDisposa
         IsDisposed = true;
         ConfigurationChangeRegistration?.Dispose();
 
-        foreach (ManagedProcessEntry entry in Supervisors.Values)
+        foreach (ManagedProcessEntry entry in GetSupervisorEntries())
         {
             entry.Supervisor.Dispose();
         }
 
-        Supervisors.Clear();
+        lock (SnapshotLock)
+        {
+            Supervisors.Clear();
+            RefreshSnapshotCore();
+        }
         ReconciliationLock.Dispose();
     }
 
@@ -168,7 +176,7 @@ internal sealed class ExternalProcessManager : IExternalProcessManager, IDisposa
 
             EffectiveExternalProcessManagerConfiguration configuration = ReadConfiguration();
 
-            await ApplyConfiguration(configuration, CancellationToken.None)
+            await ApplyConfiguration(configuration, startExistingSupervisors: false, CancellationToken.None)
                 .ConfigureAwait(continueOnCapturedContext: false);
         }
         finally
@@ -182,6 +190,7 @@ internal sealed class ExternalProcessManager : IExternalProcessManager, IDisposa
 
     private async Task ApplyConfiguration(
         EffectiveExternalProcessManagerConfiguration configuration,
+        bool startExistingSupervisors,
         CancellationToken cancellationToken)
     {
         Dictionary<string, EffectiveExternalProcessConfiguration> validProcesses = BuildValidProcessMap(configuration);
@@ -189,16 +198,11 @@ internal sealed class ExternalProcessManager : IExternalProcessManager, IDisposa
 
         foreach (EffectiveExternalProcessConfiguration process in configuration.Processes)
         {
-            await ApplyValidProcess(process, cancellationToken)
+            await ApplyValidProcess(process, startExistingSupervisors, cancellationToken)
                 .ConfigureAwait(continueOnCapturedContext: false);
         }
 
-        List<string> removedAliases =
-        [
-            .. Supervisors.Keys.Where(alias =>
-                validProcesses.ContainsKey(alias) == false
-                && invalidAliases.Contains(alias) == false),
-        ];
+        List<string> removedAliases = GetRemovedAliases(validProcesses, invalidAliases);
 
         foreach (string alias in removedAliases)
         {
@@ -211,12 +215,23 @@ internal sealed class ExternalProcessManager : IExternalProcessManager, IDisposa
 
     private async Task ApplyValidProcess(
         EffectiveExternalProcessConfiguration configuration,
+        bool startExistingSupervisor,
         CancellationToken cancellationToken)
     {
-        if (Supervisors.TryGetValue(configuration.AliasKey, out ManagedProcessEntry? existingEntry))
+        ManagedProcessEntry? existingEntry = GetSupervisorEntry(configuration.AliasKey);
+
+        if (existingEntry is not null)
         {
             if (AreEquivalent(existingEntry.Configuration, configuration))
+            {
+                if (startExistingSupervisor)
+                {
+                    await existingEntry.Supervisor.Start(cancellationToken)
+                        .ConfigureAwait(continueOnCapturedContext: false);
+                }
+
                 return;
+            }
 
             await existingEntry.Supervisor.Stop(cancellationToken)
                 .ConfigureAwait(continueOnCapturedContext: false);
@@ -225,7 +240,12 @@ internal sealed class ExternalProcessManager : IExternalProcessManager, IDisposa
         }
 
         IExternalProcessSupervisor supervisor = SupervisorFactory.Create(configuration);
-        Supervisors[configuration.AliasKey] = new ManagedProcessEntry(configuration, supervisor);
+
+        lock (SnapshotLock)
+        {
+            Supervisors[configuration.AliasKey] = new ManagedProcessEntry(configuration, supervisor);
+            RefreshSnapshotCore();
+        }
 
         await supervisor.Start(cancellationToken)
             .ConfigureAwait(continueOnCapturedContext: false);
@@ -233,21 +253,82 @@ internal sealed class ExternalProcessManager : IExternalProcessManager, IDisposa
 
     private async Task RemoveProcess(string alias, CancellationToken cancellationToken)
     {
-        if (Supervisors.Remove(alias, out ManagedProcessEntry? entry) == false)
-            return;
+        ManagedProcessEntry? entry;
+
+        lock (SnapshotLock)
+        {
+            if (Supervisors.TryGetValue(alias, out entry) == false)
+                return;
+        }
 
         await entry.Supervisor.Stop(cancellationToken)
             .ConfigureAwait(continueOnCapturedContext: false);
 
+        lock (SnapshotLock)
+        {
+            Supervisors.Remove(alias);
+            RefreshSnapshotCore();
+        }
+
         entry.Supervisor.Dispose();
+    }
+
+    private ManagedProcessEntry? GetSupervisorEntry(string alias)
+    {
+        lock (SnapshotLock)
+        {
+            Supervisors.TryGetValue(alias, out ManagedProcessEntry? entry);
+            return entry;
+        }
+    }
+
+    private ImmutableArray<ManagedProcessEntry> GetSupervisorEntries()
+    {
+        lock (SnapshotLock)
+        {
+            return [.. Supervisors.Values];
+        }
+    }
+
+    private List<string> GetRemovedAliases(
+        Dictionary<string, EffectiveExternalProcessConfiguration> validProcesses,
+        HashSet<string> invalidAliases)
+    {
+        lock (SnapshotLock)
+        {
+            return
+            [
+                .. Supervisors.Keys.Where(alias =>
+                    validProcesses.ContainsKey(alias) == false
+                    && invalidAliases.Contains(alias) == false),
+            ];
+        }
     }
 
     private void PublishSnapshot(
         ImmutableArray<InvalidExternalProcessConfiguration> invalidProcesses,
         ImmutableArray<ExternalProcessValidationError> validationErrors)
     {
+        lock (SnapshotLock)
+        {
+            InvalidProcesses = invalidProcesses;
+            ValidationErrors = validationErrors;
+            RefreshSnapshotCore();
+        }
+    }
+
+    private void RefreshSnapshot()
+    {
+        lock (SnapshotLock)
+        {
+            RefreshSnapshotCore();
+        }
+    }
+
+    private void RefreshSnapshotCore()
+    {
         Dictionary<string, ImmutableArray<ExternalProcessValidationError>> validationErrorsByAlias =
-            BuildValidationErrorMap(invalidProcesses);
+            BuildValidationErrorMap(InvalidProcesses);
         List<ExternalProcessSnapshot> processSnapshots = [];
 
         foreach (KeyValuePair<string, ManagedProcessEntry> item in Supervisors.OrderBy(
@@ -268,7 +349,7 @@ internal sealed class ExternalProcessManager : IExternalProcessManager, IDisposa
             processSnapshots.Add(snapshot);
         }
 
-        foreach (InvalidExternalProcessConfiguration invalidProcess in invalidProcesses)
+        foreach (InvalidExternalProcessConfiguration invalidProcess in InvalidProcesses)
         {
             if (invalidProcess.Alias is not null && Supervisors.ContainsKey(invalidProcess.Alias))
                 continue;
@@ -276,10 +357,7 @@ internal sealed class ExternalProcessManager : IExternalProcessManager, IDisposa
             processSnapshots.Add(CreateInvalidSnapshot(invalidProcess));
         }
 
-        lock (SnapshotLock)
-        {
-            Snapshot = CreateSnapshot(IsRunning, [.. processSnapshots], validationErrors);
-        }
+        Snapshot = CreateSnapshot(IsRunning, [.. processSnapshots], ValidationErrors);
     }
 
     private void ThrowIfDisposed()

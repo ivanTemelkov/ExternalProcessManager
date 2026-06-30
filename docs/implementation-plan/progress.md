@@ -23,7 +23,7 @@ Statuses:
 | 09 | Implement Windows cleanup abstraction | Implemented | Starts managed processes in a Windows process group, sends CTRL+BREAK for graceful stop, then force-kills the process tree when needed. |
 | 10 | Implement per-alias supervisor | Implemented | Serializes per-alias lifecycle operations and applies restart policy/backoff. |
 | 11 | Implement manager reconciliation and hot reload | Implemented | Reconciles valid aliases, preserves last valid config for invalid changed aliases, and reports invalid entries in snapshots. |
-| 12 | Implement diagnostics snapshots | Not Started | |
+| 12 | Implement diagnostics snapshots | Implemented | Snapshots refresh from current supervisor state, preserve stopped process diagnostics, and include next scheduled restart values. |
 | 13 | Implement scheduled restart execution | Not Started | |
 | 14 | Add hosted-service integration | Not Started | |
 | 15 | Add manual lifecycle idempotency and disposal | Not Started | |
@@ -124,3 +124,10 @@ YYYY-MM-DD:
 - Verification: `dotnet test IvTem.ExternalProcessManager.slnx` succeeded with 0 warnings and 0 errors.
 - Follow-up: Continue with Task 12 to refine diagnostics snapshots, including scheduled restart fields and any additional runtime state presentation.
 - Memory: Added decisions for manager-owned reload subscription, supervisor factory test seam, and invalid changed alias diagnostics overlay.
+
+2026-06-30:
+- Task: 12 - Implement diagnostics snapshots.
+- Change: Refreshed manager snapshots from current supervisor state on read, retained stopped supervisor diagnostics after manager stop, kept immutable validation state for invalid aliases, restarted retained supervisors on later manual start, and populated `NextScheduledRestart` from validated schedules through the local clock.
+- Verification: `dotnet test IvTem.ExternalProcessManager.slnx` succeeded with 0 warnings and 0 errors.
+- Follow-up: Continue with Task 13; scheduled restart execution should update runtime state and reuse the diagnostics next-occurrence calculation.
+- Memory: Added decisions for on-demand snapshot refresh and retaining stopped supervisors for diagnostics/manual restart.

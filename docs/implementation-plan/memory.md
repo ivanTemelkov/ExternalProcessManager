@@ -163,6 +163,21 @@ YYYY-MM-DD:
 - Reason: Diagnostics should show that the last valid process is still running while also surfacing the current invalid configuration.
 - Alternatives considered: Marking the process snapshot as `InvalidConfiguration`; rejected because that would hide the actual running/stopped runtime state for the preserved supervisor.
 
+2026-06-30:
+- Decision: Manager `GetSnapshot()` refreshes the published immutable snapshot from current supervisor snapshots under a short lock before returning it.
+- Reason: Supervisor status can change outside configuration reconciliation, such as observed exits and restart-pending transitions, and diagnostics must reflect that current runtime state without waiting for logs or a reload.
+- Alternatives considered: Updating the manager snapshot only at reconciliation boundaries; rejected because process exit and restart state would be stale.
+
+2026-06-30:
+- Decision: `StopAsync` stops supervisors but keeps them undisposed and retained in the manager until removal, replacement, or manager disposal.
+- Reason: Host diagnostics after stop should still show the last managed aliases as stopped, and a later manual `StartAsync` can restart unchanged retained supervisors without rebuilding process identity state.
+- Alternatives considered: Disposing and clearing supervisors during `StopAsync`; rejected because post-stop snapshots lost all process rows and manual restart needed to reconstruct unchanged aliases.
+
+2026-06-30:
+- Decision: Supervisor diagnostics calculate `NextScheduledRestart` from the validated schedule list and injected local clock when snapshots are read or updated.
+- Reason: Task 12 needs schedule information in diagnostics before Task 13 adds execution timers, and the existing calculator already defines local-time and DST behavior.
+- Alternatives considered: Leaving `NextScheduledRestart` null until scheduled execution exists; rejected because host UI diagnostics would not show the effective schedule.
+
 ## Debugging Notes
 
 Record repeatable commands, flaky test notes, and process-control observations.

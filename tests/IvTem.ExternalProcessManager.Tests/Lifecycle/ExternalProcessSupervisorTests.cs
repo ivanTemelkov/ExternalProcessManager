@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using IvTem.ExternalProcessManager.Configuration;
 using IvTem.ExternalProcessManager.Lifecycle;
+using IvTem.ExternalProcessManager.Scheduling;
 
 namespace IvTem.ExternalProcessManager.Tests.Lifecycle;
 
@@ -12,7 +13,8 @@ public sealed class ExternalProcessSupervisorTests
         FakeProcessLauncher launcher = new();
         FakeProcessCleanup cleanup = new();
         ImmediateRestartDelay restartDelay = new();
-        using ExternalProcessSupervisor supervisor = new(CreateConfiguration(), launcher, cleanup, restartDelay);
+        FakeLocalClock clock = new();
+        using ExternalProcessSupervisor supervisor = new(CreateConfiguration(), launcher, cleanup, restartDelay, clock);
 
         await supervisor.Start(CancellationToken.None);
 
@@ -28,7 +30,8 @@ public sealed class ExternalProcessSupervisorTests
         FakeProcessLauncher launcher = new();
         FakeProcessCleanup cleanup = new();
         ImmediateRestartDelay restartDelay = new();
-        using ExternalProcessSupervisor supervisor = new(CreateConfiguration(), launcher, cleanup, restartDelay);
+        FakeLocalClock clock = new();
+        using ExternalProcessSupervisor supervisor = new(CreateConfiguration(), launcher, cleanup, restartDelay, clock);
 
         await Task.WhenAll(
             supervisor.Start(CancellationToken.None),
@@ -45,7 +48,8 @@ public sealed class ExternalProcessSupervisorTests
         FakeProcessLauncher launcher = new();
         FakeProcessCleanup cleanup = new();
         ImmediateRestartDelay restartDelay = new();
-        using ExternalProcessSupervisor supervisor = new(CreateConfiguration(), launcher, cleanup, restartDelay);
+        FakeLocalClock clock = new();
+        using ExternalProcessSupervisor supervisor = new(CreateConfiguration(), launcher, cleanup, restartDelay, clock);
 
         await supervisor.Start(CancellationToken.None);
         await supervisor.Stop(CancellationToken.None);
@@ -63,7 +67,8 @@ public sealed class ExternalProcessSupervisorTests
         FakeProcessLauncher launcher = new();
         FakeProcessCleanup cleanup = new();
         ImmediateRestartDelay restartDelay = new();
-        using ExternalProcessSupervisor supervisor = new(CreateConfiguration(), launcher, cleanup, restartDelay);
+        FakeLocalClock clock = new();
+        using ExternalProcessSupervisor supervisor = new(CreateConfiguration(), launcher, cleanup, restartDelay, clock);
 
         await supervisor.Start(CancellationToken.None);
         launcher.LastHandle?.CompleteExit(0);
@@ -81,7 +86,8 @@ public sealed class ExternalProcessSupervisorTests
         FakeProcessLauncher launcher = new();
         FakeProcessCleanup cleanup = new();
         ImmediateRestartDelay restartDelay = new();
-        using ExternalProcessSupervisor supervisor = new(CreateConfiguration(), launcher, cleanup, restartDelay);
+        FakeLocalClock clock = new();
+        using ExternalProcessSupervisor supervisor = new(CreateConfiguration(), launcher, cleanup, restartDelay, clock);
 
         await supervisor.Start(CancellationToken.None);
         launcher.LastHandle?.CompleteExit(7);
@@ -100,11 +106,13 @@ public sealed class ExternalProcessSupervisorTests
         FakeProcessLauncher launcher = new();
         FakeProcessCleanup cleanup = new();
         ImmediateRestartDelay restartDelay = new();
+        FakeLocalClock clock = new();
         using ExternalProcessSupervisor supervisor = new(
             CreateConfiguration(mode: ExternalProcessRestartMode.Always),
             launcher,
             cleanup,
-            restartDelay);
+            restartDelay,
+            clock);
 
         await supervisor.Start(CancellationToken.None);
         launcher.LastHandle?.CompleteExit(0);
@@ -121,11 +129,13 @@ public sealed class ExternalProcessSupervisorTests
         FakeProcessLauncher launcher = new();
         FakeProcessCleanup cleanup = new();
         ImmediateRestartDelay restartDelay = new();
+        FakeLocalClock clock = new();
         using ExternalProcessSupervisor supervisor = new(
             CreateConfiguration(mode: ExternalProcessRestartMode.Never),
             launcher,
             cleanup,
-            restartDelay);
+            restartDelay,
+            clock);
 
         await supervisor.Start(CancellationToken.None);
         launcher.LastHandle?.CompleteExit(7);
@@ -142,7 +152,8 @@ public sealed class ExternalProcessSupervisorTests
         FakeProcessLauncher launcher = new();
         FakeProcessCleanup cleanup = new();
         ImmediateRestartDelay restartDelay = new();
-        using ExternalProcessSupervisor supervisor = new(CreateConfiguration(), launcher, cleanup, restartDelay);
+        FakeLocalClock clock = new();
+        using ExternalProcessSupervisor supervisor = new(CreateConfiguration(), launcher, cleanup, restartDelay, clock);
 
         await supervisor.Start(CancellationToken.None);
         await supervisor.Stop(CancellationToken.None);
@@ -160,7 +171,8 @@ public sealed class ExternalProcessSupervisorTests
         FakeProcessLauncher launcher = new();
         FakeProcessCleanup cleanup = new();
         BlockingRestartDelay restartDelay = new();
-        using ExternalProcessSupervisor supervisor = new(CreateConfiguration(), launcher, cleanup, restartDelay);
+        FakeLocalClock clock = new();
+        using ExternalProcessSupervisor supervisor = new(CreateConfiguration(), launcher, cleanup, restartDelay, clock);
 
         await supervisor.Start(CancellationToken.None);
         launcher.LastHandle?.CompleteExit(7);
@@ -176,8 +188,40 @@ public sealed class ExternalProcessSupervisorTests
         Assert.Equal(ExternalProcessStatus.Running, supervisor.GetSnapshot().Status);
     }
 
+    [Fact]
+    public void GetSnapshotIncludesNextScheduledRestart()
+    {
+        FakeProcessLauncher launcher = new();
+        FakeProcessCleanup cleanup = new();
+        ImmediateRestartDelay restartDelay = new();
+        FakeLocalClock clock = new()
+        {
+            Now = new DateTimeOffset(2026, 6, 30, 10, 0, 0, TimeSpan.Zero),
+            TimeZone = TimeZoneInfo.Utc,
+        };
+        using ExternalProcessSupervisor supervisor = new(
+            CreateConfiguration(scheduledRestarts:
+            [
+                new EffectiveScheduledRestartConfiguration
+                {
+                    Path = "ExternalProcessManager:Processes:0:ScheduledRestarts:0",
+                    HourOfDay = new TimeOnly(12, 30),
+                    Days = [DayOfWeek.Tuesday],
+                },
+            ]),
+            launcher,
+            cleanup,
+            restartDelay,
+            clock);
+
+        ExternalProcessSnapshot snapshot = supervisor.GetSnapshot();
+
+        Assert.Equal(new DateTimeOffset(2026, 6, 30, 12, 30, 0, TimeSpan.Zero), snapshot.NextScheduledRestart);
+    }
+
     private static EffectiveExternalProcessConfiguration CreateConfiguration(
-        ExternalProcessRestartMode mode = ExternalProcessRestartMode.NonZeroExitCode)
+        ExternalProcessRestartMode mode = ExternalProcessRestartMode.NonZeroExitCode,
+        ImmutableArray<EffectiveScheduledRestartConfiguration> scheduledRestarts = default)
         => new()
         {
             Path = "ExternalProcessManager:Processes:0",
@@ -194,6 +238,7 @@ public sealed class ExternalProcessSupervisorTests
                 StableRunDuration = TimeSpan.FromMinutes(5),
                 GracefulStopTimeout = TimeSpan.FromSeconds(10),
             },
+            ScheduledRestarts = scheduledRestarts.IsDefault ? [] : scheduledRestarts,
         };
 
     private static async Task WaitUntil(Func<bool> condition)
@@ -323,5 +368,12 @@ public sealed class ExternalProcessSupervisorTests
 
         public void Complete()
             => Completion.TrySetResult();
+    }
+
+    private sealed class FakeLocalClock : ILocalClock
+    {
+        public DateTimeOffset Now { get; init; } = DateTimeOffset.UtcNow;
+
+        public TimeZoneInfo TimeZone { get; init; } = TimeZoneInfo.Utc;
     }
 }
