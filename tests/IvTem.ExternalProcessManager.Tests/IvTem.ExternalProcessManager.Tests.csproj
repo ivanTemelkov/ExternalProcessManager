@@ -22,6 +22,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\IvTem.ExternalProcessManager\IvTem.ExternalProcessManager.csproj" />
+    <ProjectReference Include="..\IvTem.ExternalProcessManager.TestProcess\IvTem.ExternalProcessManager.TestProcess.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
 </Project>

@@ -20,7 +20,7 @@ Statuses:
 | 06 | Implement scheduler calculation | Implemented | Deterministic local-time calculator with DST gap/repeat behavior. |
 | 07 | Implement restart backoff policy | Implemented | Per-alias state object computes exponential delays from explicit runtime timestamps. |
 | 08 | Implement process launcher abstraction | Implemented | Internal launcher maps effective config to `ProcessStartInfo` and returns disposable observable handles. |
-| 09 | Implement Windows cleanup abstraction | Not Started | |
+| 09 | Implement Windows cleanup abstraction | Implemented | Starts managed processes in a Windows process group, sends CTRL+BREAK for graceful stop, then force-kills the process tree when needed. |
 | 10 | Implement per-alias supervisor | Not Started | |
 | 11 | Implement manager reconciliation and hot reload | Not Started | |
 | 12 | Implement diagnostics snapshots | Not Started | |
@@ -103,3 +103,10 @@ YYYY-MM-DD:
 - Verification: `dotnet test IvTem.ExternalProcessManager.slnx` succeeded with 0 warnings and 0 errors.
 - Follow-up: Continue with Task 09; diagnostics-specific process ID integration remains for the later manager/diagnostics tasks.
 - Memory: Added decisions for inspectable start-info mapping and canceling uncompleted exit observation when handles are disposed.
+
+2026-06-30:
+- Task: 09 - Implement Windows cleanup abstraction.
+- Change: Added internal cleanup contracts and result models, Windows CTRL+BREAK signaling, force-kill process-tree fallback, DI registration, process-group creation in the Windows launcher, command-line/environment block helpers for native launch, and helper-process integration tests for graceful stop, forced stop, and child cleanup.
+- Verification: `dotnet test IvTem.ExternalProcessManager.slnx` succeeded with 0 warnings and 0 errors; `dotnet build IvTem.ExternalProcessManager.slnx` succeeded with 0 warnings and 0 errors.
+- Follow-up: Continue with Task 10; supervisor code should call `IProcessCleanup.Stop` before disposing running handles.
+- Memory: Added decisions for Windows process-group launch and cleanup fallback behavior.

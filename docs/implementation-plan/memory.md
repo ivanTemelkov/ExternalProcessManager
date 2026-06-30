@@ -128,6 +128,16 @@ YYYY-MM-DD:
 - Reason: Awaiters should not hang forever when a handle is disposed before process exit, and completed exit observations should remain stable.
 - Alternatives considered: Leaving the task incomplete on dispose; rejected because future supervisors may dispose handles during lifecycle transitions.
 
+2026-06-30:
+- Decision: Managed processes are started through a minimal Windows `CreateProcessW` wrapper with `CREATE_NEW_PROCESS_GROUP`.
+- Reason: Targeted CTRL+BREAK requires a process group ID, and `ProcessStartInfo` does not expose the creation flag needed to make the child process ID its group ID.
+- Alternatives considered: Using `Process.Start` and attaching to the child console; rejected because it cannot reliably target only the managed process group.
+
+2026-06-30:
+- Decision: Windows cleanup first attempts CTRL+BREAK for the managed process group, waits the configured graceful timeout, then uses `Process.Kill(entireProcessTree: true)` as the force-kill fallback.
+- Reason: The graceful path supports console helpers that cooperate, while the fallback reliably cleans up descendants for uncooperative or non-console processes.
+- Alternatives considered: Root-process-only kill; rejected because cleanup scope requires descendants to be terminated too.
+
 ## Debugging Notes
 
 Record repeatable commands, flaky test notes, and process-control observations.

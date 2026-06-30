@@ -12,6 +12,7 @@ internal static class WindowsProcessStartInfoFactory
         ProcessStartInfo startInfo = new()
         {
             FileName = configuration.FileName,
+            CreateNoWindow = false,
             UseShellExecute = false,
         };
 

@@ -10,21 +10,19 @@ internal sealed class WindowsProcessLauncher : IProcessLauncher
         ArgumentNullException.ThrowIfNull(configuration);
 
         TaskCompletionSource<ProcessExitResult> exitCompletion = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        Process process = new()
-        {
-            StartInfo = WindowsProcessStartInfoFactory.Create(configuration),
-            EnableRaisingEvents = true,
-        };
+        ProcessStartInfo startInfo = WindowsProcessStartInfoFactory.Create(configuration);
+        Process? process = null;
 
-        EventHandler exitHandler = (_, _) => CompleteExit(process, exitCompletion);
-        process.Exited += exitHandler;
+        EventHandler? exitHandler = null;
 
         try
         {
-            if (process.Start() == false)
-                throw new InvalidOperationException($"Process '{configuration.FileName}' did not start.");
+            process = WindowsProcessCreation.Start(startInfo);
+            process.EnableRaisingEvents = true;
+            exitHandler = (_, _) => CompleteExit(process, exitCompletion);
+            process.Exited += exitHandler;
 
-            DateTimeOffset startedAt = new(process.StartTime);
+            DateTimeOffset startedAt = GetStartTime(process);
 
             if (process.HasExited)
                 CompleteExit(process, exitCompletion);
@@ -38,8 +36,10 @@ internal sealed class WindowsProcessLauncher : IProcessLauncher
         }
         catch
         {
-            process.Exited -= exitHandler;
-            process.Dispose();
+            if (process is not null && exitHandler is not null)
+                process.Exited -= exitHandler;
+
+            process?.Dispose();
             throw;
         }
     }
@@ -66,6 +66,18 @@ internal sealed class WindowsProcessLauncher : IProcessLauncher
         catch (InvalidOperationException)
         {
             return null;
+        }
+    }
+
+    private static DateTimeOffset GetStartTime(Process process)
+    {
+        try
+        {
+            return new DateTimeOffset(process.StartTime);
+        }
+        catch (InvalidOperationException)
+        {
+            return DateTimeOffset.Now;
         }
     }
 }
