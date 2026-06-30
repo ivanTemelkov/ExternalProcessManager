@@ -24,7 +24,7 @@ Statuses:
 | 10 | Implement per-alias supervisor | Implemented | Serializes per-alias lifecycle operations and applies restart policy/backoff. |
 | 11 | Implement manager reconciliation and hot reload | Implemented | Reconciles valid aliases, preserves last valid config for invalid changed aliases, and reports invalid entries in snapshots. |
 | 12 | Implement diagnostics snapshots | Implemented | Snapshots refresh from current supervisor state, preserve stopped process diagnostics, and include next scheduled restart values. |
-| 13 | Implement scheduled restart execution | Not Started | |
+| 13 | Implement scheduled restart execution | Implemented | Supervisors schedule one-shot due timers and execute intentional restarts under the per-alias lifecycle lock. |
 | 14 | Add hosted-service integration | Not Started | |
 | 15 | Add manual lifecycle idempotency and disposal | Not Started | |
 | 16 | Build integration test helper executable | Not Started | |
@@ -131,3 +131,10 @@ YYYY-MM-DD:
 - Verification: `dotnet test IvTem.ExternalProcessManager.slnx` succeeded with 0 warnings and 0 errors.
 - Follow-up: Continue with Task 13; scheduled restart execution should update runtime state and reuse the diagnostics next-occurrence calculation.
 - Memory: Added decisions for on-demand snapshot refresh and retaining stopped supervisors for diagnostics/manual restart.
+
+2026-06-30:
+- Task: 13 - Implement scheduled restart execution.
+- Change: Added an internal scheduled-restart timer abstraction and production timer, wired one timer per supervisor, scheduled the next validated local occurrence on start/restart/stopped-supervised states, executed due restarts as intentional lifecycle operations, incremented restart diagnostics, refreshed the next due time after execution, and replaced supervisors when schedule-only hot reload changes occur.
+- Verification: `dotnet test IvTem.ExternalProcessManager.slnx` succeeded with 0 warnings and 0 errors; `dotnet build IvTem.ExternalProcessManager.slnx` succeeded with 0 warnings and 0 errors.
+- Follow-up: Continue with Task 14; hosted-service integration should dispose manager-owned services through DI and should not add a separate configuration watcher.
+- Memory: Added decisions for supervisor-owned one-shot timers and scheduled restarts starting stopped supervised processes.

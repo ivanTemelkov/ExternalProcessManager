@@ -9,17 +9,20 @@ internal sealed class ExternalProcessSupervisorFactory : IExternalProcessSupervi
         IProcessLauncher launcher,
         IProcessCleanup cleanup,
         IRestartDelay restartDelay,
-        ILocalClock clock)
+        ILocalClock clock,
+        IScheduledRestartTimerFactory scheduledRestartTimerFactory)
     {
         ArgumentNullException.ThrowIfNull(launcher);
         ArgumentNullException.ThrowIfNull(cleanup);
         ArgumentNullException.ThrowIfNull(restartDelay);
         ArgumentNullException.ThrowIfNull(clock);
+        ArgumentNullException.ThrowIfNull(scheduledRestartTimerFactory);
 
         Launcher = launcher;
         Cleanup = cleanup;
         RestartDelay = restartDelay;
         Clock = clock;
+        ScheduledRestartTimerFactory = scheduledRestartTimerFactory;
     }
 
     private IProcessLauncher Launcher { get; }
@@ -30,10 +33,18 @@ internal sealed class ExternalProcessSupervisorFactory : IExternalProcessSupervi
 
     private ILocalClock Clock { get; }
 
+    private IScheduledRestartTimerFactory ScheduledRestartTimerFactory { get; }
+
     public IExternalProcessSupervisor Create(EffectiveExternalProcessConfiguration configuration)
     {
         ArgumentNullException.ThrowIfNull(configuration);
 
-        return new ExternalProcessSupervisor(configuration, Launcher, Cleanup, RestartDelay, Clock);
+        return new ExternalProcessSupervisor(
+            configuration,
+            Launcher,
+            Cleanup,
+            RestartDelay,
+            Clock,
+            ScheduledRestartTimerFactory);
     }
 }

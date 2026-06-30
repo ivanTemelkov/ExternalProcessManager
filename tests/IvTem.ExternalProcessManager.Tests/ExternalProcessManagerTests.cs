@@ -132,6 +132,27 @@ public sealed class ExternalProcessManagerTests
     }
 
     [Fact]
+    public async Task ReloadScheduleOnlyChangeReplacesSupervisorWithNewSchedule()
+    {
+        TestConfigurationSource source = new(CreateConfigurationWithSchedule("12:30"));
+        IConfigurationRoot configuration = BuildConfiguration(source);
+        FakeSupervisorFactory supervisorFactory = new();
+        using ExternalProcessManager manager = CreateManager(configuration, supervisorFactory);
+        await manager.StartAsync();
+        FakeSupervisor originalSupervisor = supervisorFactory.Supervisors[0];
+
+        source.Replace(CreateConfigurationWithSchedule("13:45"));
+
+        await WaitUntil(() => supervisorFactory.Supervisors.Count == 2);
+
+        FakeSupervisor replacementSupervisor = supervisorFactory.Supervisors[1];
+        Assert.Equal(1, originalSupervisor.StopCount);
+        Assert.True(originalSupervisor.IsDisposed);
+        EffectiveScheduledRestartConfiguration schedule = Assert.Single(replacementSupervisor.Configuration.ScheduledRestarts);
+        Assert.Equal(new TimeOnly(13, 45), schedule.HourOfDay);
+    }
+
+    [Fact]
     public async Task ReloadUnchangedAliasPreservesSupervisor()
     {
         TestConfigurationSource source = new(CreateConfiguration(("worker-a", "worker-a.exe")));
@@ -292,6 +313,14 @@ public sealed class ExternalProcessManagerTests
                 values[$"ExternalProcessManager:Processes:{i}:FileName"] = processes[i].FileName;
         }
 
+        return values;
+    }
+
+    private static Dictionary<string, string?> CreateConfigurationWithSchedule(string hourOfDay)
+    {
+        Dictionary<string, string?> values = CreateConfiguration(("worker-a", "worker-a.exe"));
+        values["ExternalProcessManager:Processes:0:ScheduledRestarts:0:HourOfDay"] = hourOfDay;
+        values["ExternalProcessManager:Processes:0:ScheduledRestarts:0:DayOfWeek"] = "Tuesday";
         return values;
     }
 

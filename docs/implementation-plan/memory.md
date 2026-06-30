@@ -178,6 +178,16 @@ YYYY-MM-DD:
 - Reason: Task 12 needs schedule information in diagnostics before Task 13 adds execution timers, and the existing calculator already defines local-time and DST behavior.
 - Alternatives considered: Leaving `NextScheduledRestart` null until scheduled execution exists; rejected because host UI diagnostics would not show the effective schedule.
 
+2026-06-30:
+- Decision: Scheduled restart execution uses one supervisor-owned one-shot timer created by an internal timer factory.
+- Reason: The supervisor already serializes per-alias lifecycle work, so due restarts can reuse the existing operation lock, intentional-stop versioning, cleanup, and launch flow without a manager-level scheduler racing alias operations.
+- Alternatives considered: A manager-level scheduler for all aliases; rejected because it would need to coordinate with each supervisor's lifecycle lock and duplicate per-alias state already owned by the supervisor.
+
+2026-06-30:
+- Decision: A due scheduled restart starts a stopped supervised process and increments `RestartCount` even when no running handle is found.
+- Reason: The scheduled restart feature represents an executed maintenance cycle, and the docs require stopped-but-supervised aliases to be started at due time while diagnostics reflect that execution.
+- Alternatives considered: Leaving stopped aliases stopped until manual start or crash policy restart; rejected because scheduled maintenance would not recover a supervised process that exited normally before the due time.
+
 ## Debugging Notes
 
 Record repeatable commands, flaky test notes, and process-control observations.

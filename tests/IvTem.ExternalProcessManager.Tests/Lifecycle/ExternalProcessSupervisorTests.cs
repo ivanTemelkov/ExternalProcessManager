@@ -14,7 +14,8 @@ public sealed class ExternalProcessSupervisorTests
         FakeProcessCleanup cleanup = new();
         ImmediateRestartDelay restartDelay = new();
         FakeLocalClock clock = new();
-        using ExternalProcessSupervisor supervisor = new(CreateConfiguration(), launcher, cleanup, restartDelay, clock);
+        FakeScheduledRestartTimerFactory timerFactory = new();
+        using ExternalProcessSupervisor supervisor = new(CreateConfiguration(), launcher, cleanup, restartDelay, clock, timerFactory);
 
         await supervisor.Start(CancellationToken.None);
 
@@ -31,7 +32,8 @@ public sealed class ExternalProcessSupervisorTests
         FakeProcessCleanup cleanup = new();
         ImmediateRestartDelay restartDelay = new();
         FakeLocalClock clock = new();
-        using ExternalProcessSupervisor supervisor = new(CreateConfiguration(), launcher, cleanup, restartDelay, clock);
+        FakeScheduledRestartTimerFactory timerFactory = new();
+        using ExternalProcessSupervisor supervisor = new(CreateConfiguration(), launcher, cleanup, restartDelay, clock, timerFactory);
 
         await Task.WhenAll(
             supervisor.Start(CancellationToken.None),
@@ -49,7 +51,8 @@ public sealed class ExternalProcessSupervisorTests
         FakeProcessCleanup cleanup = new();
         ImmediateRestartDelay restartDelay = new();
         FakeLocalClock clock = new();
-        using ExternalProcessSupervisor supervisor = new(CreateConfiguration(), launcher, cleanup, restartDelay, clock);
+        FakeScheduledRestartTimerFactory timerFactory = new();
+        using ExternalProcessSupervisor supervisor = new(CreateConfiguration(), launcher, cleanup, restartDelay, clock, timerFactory);
 
         await supervisor.Start(CancellationToken.None);
         await supervisor.Stop(CancellationToken.None);
@@ -68,7 +71,8 @@ public sealed class ExternalProcessSupervisorTests
         FakeProcessCleanup cleanup = new();
         ImmediateRestartDelay restartDelay = new();
         FakeLocalClock clock = new();
-        using ExternalProcessSupervisor supervisor = new(CreateConfiguration(), launcher, cleanup, restartDelay, clock);
+        FakeScheduledRestartTimerFactory timerFactory = new();
+        using ExternalProcessSupervisor supervisor = new(CreateConfiguration(), launcher, cleanup, restartDelay, clock, timerFactory);
 
         await supervisor.Start(CancellationToken.None);
         launcher.LastHandle?.CompleteExit(0);
@@ -87,7 +91,8 @@ public sealed class ExternalProcessSupervisorTests
         FakeProcessCleanup cleanup = new();
         ImmediateRestartDelay restartDelay = new();
         FakeLocalClock clock = new();
-        using ExternalProcessSupervisor supervisor = new(CreateConfiguration(), launcher, cleanup, restartDelay, clock);
+        FakeScheduledRestartTimerFactory timerFactory = new();
+        using ExternalProcessSupervisor supervisor = new(CreateConfiguration(), launcher, cleanup, restartDelay, clock, timerFactory);
 
         await supervisor.Start(CancellationToken.None);
         launcher.LastHandle?.CompleteExit(7);
@@ -112,7 +117,8 @@ public sealed class ExternalProcessSupervisorTests
             launcher,
             cleanup,
             restartDelay,
-            clock);
+            clock,
+            new FakeScheduledRestartTimerFactory());
 
         await supervisor.Start(CancellationToken.None);
         launcher.LastHandle?.CompleteExit(0);
@@ -135,7 +141,8 @@ public sealed class ExternalProcessSupervisorTests
             launcher,
             cleanup,
             restartDelay,
-            clock);
+            clock,
+            new FakeScheduledRestartTimerFactory());
 
         await supervisor.Start(CancellationToken.None);
         launcher.LastHandle?.CompleteExit(7);
@@ -153,7 +160,8 @@ public sealed class ExternalProcessSupervisorTests
         FakeProcessCleanup cleanup = new();
         ImmediateRestartDelay restartDelay = new();
         FakeLocalClock clock = new();
-        using ExternalProcessSupervisor supervisor = new(CreateConfiguration(), launcher, cleanup, restartDelay, clock);
+        FakeScheduledRestartTimerFactory timerFactory = new();
+        using ExternalProcessSupervisor supervisor = new(CreateConfiguration(), launcher, cleanup, restartDelay, clock, timerFactory);
 
         await supervisor.Start(CancellationToken.None);
         await supervisor.Stop(CancellationToken.None);
@@ -172,7 +180,8 @@ public sealed class ExternalProcessSupervisorTests
         FakeProcessCleanup cleanup = new();
         BlockingRestartDelay restartDelay = new();
         FakeLocalClock clock = new();
-        using ExternalProcessSupervisor supervisor = new(CreateConfiguration(), launcher, cleanup, restartDelay, clock);
+        FakeScheduledRestartTimerFactory timerFactory = new();
+        using ExternalProcessSupervisor supervisor = new(CreateConfiguration(), launcher, cleanup, restartDelay, clock, timerFactory);
 
         await supervisor.Start(CancellationToken.None);
         launcher.LastHandle?.CompleteExit(7);
@@ -212,11 +221,151 @@ public sealed class ExternalProcessSupervisorTests
             launcher,
             cleanup,
             restartDelay,
-            clock);
+            clock,
+            new FakeScheduledRestartTimerFactory());
 
         ExternalProcessSnapshot snapshot = supervisor.GetSnapshot();
 
         Assert.Equal(new DateTimeOffset(2026, 6, 30, 12, 30, 0, TimeSpan.Zero), snapshot.NextScheduledRestart);
+    }
+
+    [Fact]
+    public async Task DueScheduledRestartRestartsRunningProcess()
+    {
+        FakeProcessLauncher launcher = new();
+        FakeProcessCleanup cleanup = new();
+        ImmediateRestartDelay restartDelay = new();
+        FakeLocalClock clock = new()
+        {
+            Now = new DateTimeOffset(2026, 6, 30, 10, 0, 0, TimeSpan.Zero),
+            TimeZone = TimeZoneInfo.Utc,
+        };
+        FakeScheduledRestartTimerFactory timerFactory = new();
+        using ExternalProcessSupervisor supervisor = new(
+            CreateConfiguration(scheduledRestarts: CreateTuesdayRestartSchedules(new TimeOnly(12, 30))),
+            launcher,
+            cleanup,
+            restartDelay,
+            clock,
+            timerFactory);
+
+        await supervisor.Start(CancellationToken.None);
+
+        FakeScheduledRestartTimer timer = Assert.Single(timerFactory.Timers);
+        Assert.Equal(new DateTimeOffset(2026, 6, 30, 12, 30, 0, TimeSpan.Zero), timer.ScheduledDueTime);
+
+        DateTimeOffset dueTime = Assert.IsType<DateTimeOffset>(timer.ScheduledDueTime);
+        clock.Now = dueTime;
+        await timer.Trigger();
+
+        ExternalProcessSnapshot snapshot = supervisor.GetSnapshot();
+        Assert.Equal(ExternalProcessStatus.Running, snapshot.Status);
+        Assert.Equal(1, snapshot.RestartCount);
+        Assert.Equal(2, launcher.LaunchedHandles.Count);
+        Assert.Single(cleanup.StopRequests);
+    }
+
+    [Fact]
+    public async Task ScheduledRestartUpdatesNextOccurrenceAfterExecution()
+    {
+        FakeProcessLauncher launcher = new();
+        FakeProcessCleanup cleanup = new();
+        ImmediateRestartDelay restartDelay = new();
+        FakeLocalClock clock = new()
+        {
+            Now = new DateTimeOffset(2026, 6, 30, 10, 0, 0, TimeSpan.Zero),
+            TimeZone = TimeZoneInfo.Utc,
+        };
+        FakeScheduledRestartTimerFactory timerFactory = new();
+        using ExternalProcessSupervisor supervisor = new(
+            CreateConfiguration(scheduledRestarts: CreateTuesdayRestartSchedules(new TimeOnly(12, 30))),
+            launcher,
+            cleanup,
+            restartDelay,
+            clock,
+            timerFactory);
+
+        await supervisor.Start(CancellationToken.None);
+        FakeScheduledRestartTimer timer = Assert.Single(timerFactory.Timers);
+
+        DateTimeOffset dueTime = Assert.IsType<DateTimeOffset>(timer.ScheduledDueTime);
+        clock.Now = dueTime;
+        await timer.Trigger();
+
+        Assert.Equal(new DateTimeOffset(2026, 7, 7, 12, 30, 0, TimeSpan.Zero), supervisor.GetSnapshot().NextScheduledRestart);
+        Assert.Equal(new DateTimeOffset(2026, 7, 7, 12, 30, 0, TimeSpan.Zero), timer.ScheduledDueTime);
+    }
+
+    [Fact]
+    public async Task DuplicateDueSchedulesCauseOneRestart()
+    {
+        FakeProcessLauncher launcher = new();
+        FakeProcessCleanup cleanup = new();
+        ImmediateRestartDelay restartDelay = new();
+        FakeLocalClock clock = new()
+        {
+            Now = new DateTimeOffset(2026, 6, 30, 10, 0, 0, TimeSpan.Zero),
+            TimeZone = TimeZoneInfo.Utc,
+        };
+        FakeScheduledRestartTimerFactory timerFactory = new();
+        using ExternalProcessSupervisor supervisor = new(
+            CreateConfiguration(scheduledRestarts:
+            [
+                .. CreateTuesdayRestartSchedules(new TimeOnly(12, 30)),
+                .. CreateTuesdayRestartSchedules(new TimeOnly(12, 30)),
+            ]),
+            launcher,
+            cleanup,
+            restartDelay,
+            clock,
+            timerFactory);
+
+        await supervisor.Start(CancellationToken.None);
+        FakeScheduledRestartTimer timer = Assert.Single(timerFactory.Timers);
+
+        DateTimeOffset dueTime = Assert.IsType<DateTimeOffset>(timer.ScheduledDueTime);
+        clock.Now = dueTime;
+        await timer.Trigger();
+
+        Assert.Equal(2, launcher.LaunchedHandles.Count);
+        Assert.Single(cleanup.StopRequests);
+        Assert.Equal(1, supervisor.GetSnapshot().RestartCount);
+    }
+
+    [Fact]
+    public async Task DueScheduledRestartStartsStoppedSupervisedProcess()
+    {
+        FakeProcessLauncher launcher = new();
+        FakeProcessCleanup cleanup = new();
+        ImmediateRestartDelay restartDelay = new();
+        FakeLocalClock clock = new()
+        {
+            Now = new DateTimeOffset(2026, 6, 30, 10, 0, 0, TimeSpan.Zero),
+            TimeZone = TimeZoneInfo.Utc,
+        };
+        FakeScheduledRestartTimerFactory timerFactory = new();
+        using ExternalProcessSupervisor supervisor = new(
+            CreateConfiguration(scheduledRestarts: CreateTuesdayRestartSchedules(new TimeOnly(12, 30))),
+            launcher,
+            cleanup,
+            restartDelay,
+            clock,
+            timerFactory);
+
+        await supervisor.Start(CancellationToken.None);
+        launcher.LastHandle?.CompleteExit(0);
+        await WaitUntil(() => supervisor.GetSnapshot().Status == ExternalProcessStatus.Stopped);
+
+        FakeScheduledRestartTimer timer = Assert.Single(timerFactory.Timers);
+        DateTimeOffset dueTime = Assert.IsType<DateTimeOffset>(timer.ScheduledDueTime);
+        clock.Now = dueTime;
+        await timer.Trigger();
+
+        ExternalProcessSnapshot snapshot = supervisor.GetSnapshot();
+        Assert.Equal(ExternalProcessStatus.Running, snapshot.Status);
+        Assert.Equal(2, launcher.LaunchedHandles.Count);
+        Assert.Empty(cleanup.StopRequests);
+        Assert.Equal(1, snapshot.RestartCount);
     }
 
     private static EffectiveExternalProcessConfiguration CreateConfiguration(
@@ -240,6 +389,17 @@ public sealed class ExternalProcessSupervisorTests
             },
             ScheduledRestarts = scheduledRestarts.IsDefault ? [] : scheduledRestarts,
         };
+
+    private static ImmutableArray<EffectiveScheduledRestartConfiguration> CreateTuesdayRestartSchedules(TimeOnly hourOfDay)
+        =>
+        [
+            new()
+            {
+                Path = "ExternalProcessManager:Processes:0:ScheduledRestarts:0",
+                HourOfDay = hourOfDay,
+                Days = [DayOfWeek.Tuesday],
+            },
+        ];
 
     private static async Task WaitUntil(Func<bool> condition)
     {
@@ -372,8 +532,48 @@ public sealed class ExternalProcessSupervisorTests
 
     private sealed class FakeLocalClock : ILocalClock
     {
-        public DateTimeOffset Now { get; init; } = DateTimeOffset.UtcNow;
+        public DateTimeOffset Now { get; set; } = DateTimeOffset.UtcNow;
 
         public TimeZoneInfo TimeZone { get; init; } = TimeZoneInfo.Utc;
+    }
+
+    private sealed class FakeScheduledRestartTimerFactory : IScheduledRestartTimerFactory
+    {
+        public List<FakeScheduledRestartTimer> Timers { get; } = [];
+
+        public IScheduledRestartTimer Create(Func<Task> callback)
+        {
+            ArgumentNullException.ThrowIfNull(callback);
+
+            FakeScheduledRestartTimer timer = new(callback);
+            Timers.Add(timer);
+            return timer;
+        }
+    }
+
+    private sealed class FakeScheduledRestartTimer : IScheduledRestartTimer
+    {
+        public FakeScheduledRestartTimer(Func<Task> callback)
+        {
+            Callback = callback;
+        }
+
+        private Func<Task> Callback { get; }
+
+        public DateTimeOffset? ScheduledDueTime { get; private set; }
+
+        public bool IsDisposed { get; private set; }
+
+        public void Schedule(DateTimeOffset dueTime)
+            => ScheduledDueTime = dueTime;
+
+        public void Cancel()
+            => ScheduledDueTime = null;
+
+        public Task Trigger()
+            => Callback();
+
+        public void Dispose()
+            => IsDisposed = true;
     }
 }

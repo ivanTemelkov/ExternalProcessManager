@@ -12,19 +12,22 @@ internal sealed class ExternalProcessSupervisor : IExternalProcessSupervisor
         IProcessLauncher launcher,
         IProcessCleanup cleanup,
         IRestartDelay restartDelay,
-        ILocalClock clock)
+        ILocalClock clock,
+        IScheduledRestartTimerFactory scheduledRestartTimerFactory)
     {
         ArgumentNullException.ThrowIfNull(configuration);
         ArgumentNullException.ThrowIfNull(launcher);
         ArgumentNullException.ThrowIfNull(cleanup);
         ArgumentNullException.ThrowIfNull(restartDelay);
         ArgumentNullException.ThrowIfNull(clock);
+        ArgumentNullException.ThrowIfNull(scheduledRestartTimerFactory);
 
         Configuration = configuration;
         Launcher = launcher;
         Cleanup = cleanup;
         RestartDelay = restartDelay;
         Clock = clock;
+        ScheduledRestartTimer = scheduledRestartTimerFactory.Create(ExecuteScheduledRestart);
         ScheduledRestartCalculator = new ScheduledRestartCalculator(clock.TimeZone);
         BackoffState = new RestartBackoffState(configuration.Restart);
         Snapshot = CreateInitialSnapshot(configuration);
@@ -41,6 +44,8 @@ internal sealed class ExternalProcessSupervisor : IExternalProcessSupervisor
 
     private ILocalClock Clock { get; }
 
+    private IScheduledRestartTimer ScheduledRestartTimer { get; }
+
     private ScheduledRestartCalculator ScheduledRestartCalculator { get; }
 
     private RestartBackoffState BackoffState { get; }
@@ -56,6 +61,8 @@ internal sealed class ExternalProcessSupervisor : IExternalProcessSupervisor
     private ExternalProcessSnapshot Snapshot { get; set; }
 
     private ExternalProcessStatus Status { get; set; }
+
+    private DateTimeOffset? ScheduledRestartDueTime { get; set; }
 
     private int Version { get; set; }
 
@@ -91,6 +98,7 @@ internal sealed class ExternalProcessSupervisor : IExternalProcessSupervisor
             BackoffState.Reset();
             Version++;
             LaunchForCurrentVersion();
+            ScheduleNextRestart();
         }
         finally
         {
@@ -110,6 +118,7 @@ internal sealed class ExternalProcessSupervisor : IExternalProcessSupervisor
             ThrowIfDisposed();
 
             Version++;
+            CancelScheduledRestart();
 
             if (CurrentHandle is null)
             {
@@ -156,6 +165,7 @@ internal sealed class ExternalProcessSupervisor : IExternalProcessSupervisor
 
         IsDisposed = true;
         LifetimeCancellation.Cancel();
+        ScheduledRestartTimer.Dispose();
         CurrentHandle?.Dispose();
         LifetimeCancellation.Dispose();
         OperationLock.Dispose();
@@ -236,6 +246,7 @@ internal sealed class ExternalProcessSupervisor : IExternalProcessSupervisor
             {
                 BackoffState.ResetIfStableRuntimeObserved(handle.StartedAt, exit.ExitedAt);
                 ApplyExitedResult(exit, ExternalProcessStatus.Stopped);
+                ScheduleNextRestart();
             }
         }
         finally
@@ -269,11 +280,91 @@ internal sealed class ExternalProcessSupervisor : IExternalProcessSupervisor
                 return;
 
             LaunchForCurrentVersion();
+            ScheduleNextRestart();
         }
         finally
         {
             OperationLock.Release();
         }
+    }
+
+    private async Task ExecuteScheduledRestart()
+    {
+        try
+        {
+            await OperationLock.WaitAsync(LifetimeCancellation.Token)
+                .ConfigureAwait(continueOnCapturedContext: false);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+
+        try
+        {
+            if (IsDisposed || ScheduledRestartDueTime.HasValue == false)
+                return;
+
+            if (ScheduledRestartDueTime.Value > Clock.Now)
+            {
+                ScheduledRestartTimer.Schedule(ScheduledRestartDueTime.Value);
+                return;
+            }
+
+            ScheduledRestartDueTime = null;
+            Version++;
+
+            if (CurrentHandle is null || CurrentHandle.Exited.IsCompleted)
+            {
+                CurrentHandle?.Dispose();
+                CurrentHandle = null;
+                BackoffState.Reset();
+                IncrementRestartCount();
+                LaunchForCurrentVersion();
+                ScheduleNextRestart();
+                return;
+            }
+
+            IProcessHandle handle = CurrentHandle;
+            SetStatus(ExternalProcessStatus.Stopping);
+
+            ProcessCleanupResult result = await Cleanup.Stop(
+                    handle,
+                    Configuration.Restart.GracefulStopTimeout,
+                    LifetimeCancellation.Token)
+                .ConfigureAwait(continueOnCapturedContext: false);
+
+            CurrentHandle = null;
+            BackoffState.Reset();
+            handle.Dispose();
+            ApplyScheduledRestartResult(result);
+            LaunchForCurrentVersion();
+            ScheduleNextRestart();
+        }
+        catch (OperationCanceledException) when (LifetimeCancellation.IsCancellationRequested)
+        {
+        }
+        finally
+        {
+            OperationLock.Release();
+        }
+    }
+
+    private void ScheduleNextRestart()
+    {
+        DateTimeOffset? dueTime = GetNextScheduledRestart();
+        ScheduledRestartDueTime = dueTime;
+
+        if (dueTime.HasValue)
+            ScheduledRestartTimer.Schedule(dueTime.Value);
+        else
+            ScheduledRestartTimer.Cancel();
+    }
+
+    private void CancelScheduledRestart()
+    {
+        ScheduledRestartDueTime = null;
+        ScheduledRestartTimer.Cancel();
     }
 
     private bool ShouldRestart(int? exitCode)
@@ -350,6 +441,29 @@ internal sealed class ExternalProcessSupervisor : IExternalProcessSupervisor
             ExitedAt = result.CompletedAt,
             LastExitCode = result.ExitCode,
             LastError = null,
+        });
+    }
+
+    private void ApplyScheduledRestartResult(ProcessCleanupResult result)
+    {
+        Status = ExternalProcessStatus.Stopped;
+
+        UpdateSnapshot(snapshot => snapshot with
+        {
+            Status = ExternalProcessStatus.Stopped,
+            ProcessId = null,
+            ExitedAt = result.CompletedAt,
+            LastExitCode = result.ExitCode,
+            RestartCount = snapshot.RestartCount + 1,
+            LastError = null,
+        });
+    }
+
+    private void IncrementRestartCount()
+    {
+        UpdateSnapshot(snapshot => snapshot with
+        {
+            RestartCount = snapshot.RestartCount + 1,
         });
     }
 
