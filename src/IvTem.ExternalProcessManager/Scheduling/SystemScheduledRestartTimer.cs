@@ -1,20 +1,29 @@
+using Microsoft.Extensions.Logging;
+
 namespace IvTem.ExternalProcessManager.Scheduling;
 
-internal sealed class SystemScheduledRestartTimer : IScheduledRestartTimer
+internal sealed partial class SystemScheduledRestartTimer : IScheduledRestartTimer
 {
-    public SystemScheduledRestartTimer(Func<Task> callback, ILocalClock clock)
+    public SystemScheduledRestartTimer(
+        Func<Task> callback,
+        ILocalClock clock,
+        ILogger logger)
     {
         ArgumentNullException.ThrowIfNull(callback);
         ArgumentNullException.ThrowIfNull(clock);
+        ArgumentNullException.ThrowIfNull(logger);
 
         Callback = callback;
         Clock = clock;
+        Logger = logger;
         Timer = new Timer(OnElapsed);
     }
 
     private Func<Task> Callback { get; }
 
     private ILocalClock Clock { get; }
+
+    private ILogger Logger { get; }
 
     private Timer Timer { get; }
 
@@ -79,5 +88,12 @@ internal sealed class SystemScheduledRestartTimer : IScheduledRestartTimer
         {
             // Timer callbacks can race with timer disposal.
         }
+        catch (Exception exception)
+        {
+            LogScheduledRestartTimerCallbackFailed(Logger, exception);
+        }
     }
+
+    [LoggerMessage(EventId = 4000, Level = LogLevel.Error, Message = "Scheduled restart timer callback failed unexpectedly.")]
+    private static partial void LogScheduledRestartTimerCallbackFailed(ILogger logger, Exception exception);
 }

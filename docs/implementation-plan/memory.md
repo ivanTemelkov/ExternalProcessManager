@@ -258,6 +258,11 @@ YYYY-MM-DD:
 - Reason: Reload reconciliation should remain best effort and observable without spreading catch-all handling through normal configuration application code.
 - Alternatives considered: Catching exceptions inside `ApplyConfiguration`; rejected because it would hide which fire-and-forget path failed and could interfere with normal start/stop error behavior.
 
+2026-07-01:
+- Decision: Scheduled restart timers accept the factory-owned `ILogger` and log unexpected callback failures from the timer's fire-and-forget boundary.
+- Reason: Timer instances are created internally by the factory, and Sonar rule `S6672` requires constructor-injected loggers to use the enclosing factory type while the timer still needs an observable callback failure boundary.
+- Alternatives considered: Injecting `ILogger<SystemScheduledRestartTimer>` into the factory; rejected because it violates the enforced Sonar logger-type rule. Exposing timer events publicly; rejected because diagnostics remain snapshot-based and logs are the intended historical signal.
+
 ## Debugging Notes
 
 Record repeatable commands, flaky test notes, and process-control observations.

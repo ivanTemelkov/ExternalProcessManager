@@ -216,3 +216,10 @@ YYYY-MM-DD:
 - Verification: `dotnet test IvTem.ExternalProcessManager.slnx` succeeded with 104 passing tests; `dotnet build IvTem.ExternalProcessManager.slnx` succeeded with 0 warnings and 0 errors.
 - Follow-up: Continue with improvement Task 003.
 - Memory: Added decision for keeping exception handling at the fire-and-forget reload boundary and filtering expected shutdown exceptions there.
+
+2026-07-01:
+- Task: Improvements 003 - Log scheduled timer callback failures.
+- Change: Added source-generated error logging around production scheduled restart timer callbacks, while preserving benign handling for cancellation and disposal races; added focused timer tests for unexpected callback failures, cancellation, and disposal exceptions.
+- Verification: `dotnet test IvTem.ExternalProcessManager.slnx --filter SystemScheduledRestartTimerTests` succeeded with 3 passing tests; `dotnet test IvTem.ExternalProcessManager.slnx` succeeded with 107 passing tests; `dotnet build IvTem.ExternalProcessManager.slnx` succeeded with 0 warnings and 0 errors.
+- Follow-up: Continue with improvement Task 004.
+- Memory: Added decision for passing the factory logger into timer instances to keep the production timer internal while satisfying Sonar logger-type enforcement.
