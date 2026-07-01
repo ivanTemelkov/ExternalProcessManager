@@ -357,6 +357,28 @@ public sealed class ExternalProcessManagerTests
     }
 
     [Fact]
+    public async Task ReloadUnexpectedFailureIsLogged()
+    {
+        TestConfigurationSource source = new(CreateConfiguration(("worker-a", "worker-a.exe")));
+        IConfigurationRoot configuration = BuildConfiguration(source);
+        FakeSupervisorFactory supervisorFactory = new();
+        TestLogger<ExternalProcessManager> logger = new();
+        using ExternalProcessManager manager = CreateManager(configuration, supervisorFactory, logger);
+        await manager.StartAsync();
+        InvalidOperationException exception = new("Reload start failure.");
+        supervisorFactory.StartException = exception;
+
+        source.Replace(CreateConfiguration(("worker-a", "worker-a-v2.exe")));
+
+        await WaitUntil(() => logger.Entries.Any(entry => entry.EventId == 1011));
+
+        TestLogEntry entry = Assert.Single(logger.Entries, entry => entry.EventId == 1011);
+        Assert.Equal(LogLevel.Error, entry.Level);
+        Assert.Same(exception, entry.Exception);
+        Assert.Contains("hot reload", entry.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task StartAndStopEmitLifecycleLogs()
     {
         TestConfigurationSource source = new(CreateConfiguration(("worker-a", "worker-a.exe")));
@@ -493,11 +515,13 @@ public sealed class ExternalProcessManagerTests
     {
         public List<FakeSupervisor> Supervisors { get; } = [];
 
+        public Exception? StartException { get; set; }
+
         public IExternalProcessSupervisor Create(EffectiveExternalProcessConfiguration configuration)
         {
             ArgumentNullException.ThrowIfNull(configuration);
 
-            FakeSupervisor supervisor = new(configuration);
+            FakeSupervisor supervisor = new(configuration, StartException);
             Supervisors.Add(supervisor);
             return supervisor;
         }
@@ -505,13 +529,18 @@ public sealed class ExternalProcessManagerTests
 
     private sealed class FakeSupervisor : IExternalProcessSupervisor
     {
-        public FakeSupervisor(EffectiveExternalProcessConfiguration configuration)
+        public FakeSupervisor(
+            EffectiveExternalProcessConfiguration configuration,
+            Exception? startException)
         {
             Configuration = configuration;
+            StartException = startException;
             Snapshot = CreateSnapshot(ExternalProcessStatus.NotStarted);
         }
 
         public EffectiveExternalProcessConfiguration Configuration { get; }
+
+        private Exception? StartException { get; }
 
         public int StartCount { get; private set; }
 
@@ -527,6 +556,9 @@ public sealed class ExternalProcessManagerTests
         public Task Start(CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
+
+            if (StartException is not null)
+                throw StartException;
 
             StartCount++;
             Snapshot = CreateSnapshot(ExternalProcessStatus.Running);

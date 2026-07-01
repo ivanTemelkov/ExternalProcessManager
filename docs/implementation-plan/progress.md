@@ -209,3 +209,10 @@ YYYY-MM-DD:
 - Verification: `dotnet build IvTem.ExternalProcessManager.slnx` succeeded with 0 warnings and 0 errors; `dotnet test IvTem.ExternalProcessManager.slnx` succeeded with 103 passing tests; analyzer/suppression scan found the expected package reference, narrow `.editorconfig` rule overrides, and one locally justified `S6966` pragma for the synchronous dispose test.
 - Follow-up: Continue with improvement Task 002.
 - Memory: Added decisions for SonarAnalyzer enforcement, preserving `== false`, preserving explicit loops, and the local sync-dispose test suppression.
+
+2026-07-01:
+- Task: Improvements 002 - Log hot-reload background failures.
+- Change: Added a guarded hot-reload reconciliation wrapper that logs unexpected background reload failures through source-generated event `1011` while keeping expected shutdown/disposal exceptions quiet; added a focused manager test that triggers a reload start failure through the fake supervisor seam and verifies the error log is emitted.
+- Verification: `dotnet test IvTem.ExternalProcessManager.slnx` succeeded with 104 passing tests; `dotnet build IvTem.ExternalProcessManager.slnx` succeeded with 0 warnings and 0 errors.
+- Follow-up: Continue with improvement Task 003.
+- Memory: Added decision for keeping exception handling at the fire-and-forget reload boundary and filtering expected shutdown exceptions there.

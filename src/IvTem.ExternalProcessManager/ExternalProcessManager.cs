@@ -215,7 +215,25 @@ internal sealed partial class ExternalProcessManager : IExternalProcessManager, 
     }
 
     private void OnConfigurationChanged()
-        => _ = ReconcileChangedConfiguration();
+        => _ = ReconcileChangedConfigurationSafely();
+
+    private async Task ReconcileChangedConfigurationSafely()
+    {
+        try
+        {
+            await ReconcileChangedConfiguration()
+                .ConfigureAwait(continueOnCapturedContext: false);
+        }
+        catch (Exception exception)
+        {
+            if (IsExpectedReloadException(exception) == false)
+                LogConfigurationReloadFailed(Logger, exception);
+        }
+    }
+
+    private bool IsExpectedReloadException(Exception exception)
+        => exception is OperationCanceledException && (IsDisposed || IsRunning == false)
+            || exception is ObjectDisposedException && IsDisposed;
 
     private async Task ReconcileChangedConfiguration()
     {
@@ -602,6 +620,9 @@ internal sealed partial class ExternalProcessManager : IExternalProcessManager, 
 
     [LoggerMessage(EventId = 1010, Level = LogLevel.Information, Message = "Removing external process supervisor for alias {Alias}.")]
     private static partial void LogRemovingProcess(ILogger logger, string alias);
+
+    [LoggerMessage(EventId = 1011, Level = LogLevel.Error, Message = "External process manager hot reload failed unexpectedly during configuration reconciliation.")]
+    private static partial void LogConfigurationReloadFailed(ILogger logger, Exception exception);
 
     private sealed record ManagedProcessEntry(
         EffectiveExternalProcessConfiguration Configuration,

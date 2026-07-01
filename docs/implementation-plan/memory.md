@@ -253,6 +253,11 @@ YYYY-MM-DD:
 - Reason: The test intentionally calls `Dispose()` to verify the synchronous disposal path, so replacing it with `DisposeAsync()` would stop testing the behavior under test.
 - Alternatives considered: Converting the test to `DisposeAsync`; rejected because a separate async-dispose test already covers that path.
 
+2026-07-01:
+- Decision: Handle unexpected hot-reload exceptions at the fire-and-forget callback boundary with a source-generated error log, while filtering expected shutdown `OperationCanceledException` and disposal `ObjectDisposedException` cases there.
+- Reason: Reload reconciliation should remain best effort and observable without spreading catch-all handling through normal configuration application code.
+- Alternatives considered: Catching exceptions inside `ApplyConfiguration`; rejected because it would hide which fire-and-forget path failed and could interfere with normal start/stop error behavior.
+
 ## Debugging Notes
 
 Record repeatable commands, flaky test notes, and process-control observations.
