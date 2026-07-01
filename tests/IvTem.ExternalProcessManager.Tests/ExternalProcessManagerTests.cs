@@ -90,6 +90,54 @@ public sealed class ExternalProcessManagerTests
     }
 
     [Fact]
+    public async Task CanceledStopKeepsManagerRunningAndCanBeRetried()
+    {
+        TestConfigurationSource source = new(CreateConfiguration(
+            ("worker-a", "worker-a.exe"),
+            ("worker-b", "worker-b.exe"),
+            ("worker-c", "worker-c.exe")));
+        IConfigurationRoot configuration = BuildConfiguration(source);
+        FakeSupervisorFactory supervisorFactory = new();
+        TestLogger<ExternalProcessManager> logger = new();
+        using ExternalProcessManager manager = CreateManager(configuration, supervisorFactory, logger);
+        await manager.StartAsync();
+        using CancellationTokenSource stopCancellation = new();
+        FakeSupervisor firstSupervisor = supervisorFactory.Supervisors[0];
+        FakeSupervisor secondSupervisor = supervisorFactory.Supervisors[1];
+        FakeSupervisor thirdSupervisor = supervisorFactory.Supervisors[2];
+        secondSupervisor.StopInterruption = cancellationToken =>
+        {
+            stopCancellation.Cancel();
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.CompletedTask;
+        };
+
+        await Assert.ThrowsAsync<OperationCanceledException>(() => manager.StopAsync(stopCancellation.Token));
+
+        ExternalProcessManagerSnapshot canceledSnapshot = manager.GetSnapshot();
+        Assert.True(canceledSnapshot.IsRunning);
+        Assert.Equal(1, firstSupervisor.StopCount);
+        Assert.Equal(1, secondSupervisor.StopCount);
+        Assert.Equal(0, thirdSupervisor.StopCount);
+        Assert.Equal(ExternalProcessStatus.Stopped, canceledSnapshot.Processes[0].Status);
+        Assert.Equal(ExternalProcessStatus.Running, canceledSnapshot.Processes[1].Status);
+        Assert.Equal(ExternalProcessStatus.Running, canceledSnapshot.Processes[2].Status);
+        Assert.Contains(logger.Entries, entry => entry.EventId == 1012
+            && entry.Level == LogLevel.Warning);
+
+        secondSupervisor.StopInterruption = null;
+
+        await manager.StopAsync();
+
+        ExternalProcessManagerSnapshot stoppedSnapshot = manager.GetSnapshot();
+        Assert.False(stoppedSnapshot.IsRunning);
+        Assert.Equal(2, firstSupervisor.StopCount);
+        Assert.Equal(2, secondSupervisor.StopCount);
+        Assert.Equal(1, thirdSupervisor.StopCount);
+        Assert.All(stoppedSnapshot.Processes, process => Assert.Equal(ExternalProcessStatus.Stopped, process.Status));
+    }
+
+    [Fact]
     public async Task StartAfterStopStartsExistingSupervisors()
     {
         TestConfigurationSource source = new(CreateConfiguration(("worker-a", "worker-a.exe")));
@@ -548,6 +596,8 @@ public sealed class ExternalProcessManagerTests
 
         public bool IsDisposed { get; private set; }
 
+        public Func<CancellationToken, Task>? StopInterruption { get; set; }
+
         private ExternalProcessSnapshot Snapshot { get; set; }
 
         public ExternalProcessSnapshot GetSnapshot()
@@ -565,13 +615,19 @@ public sealed class ExternalProcessManagerTests
             return Task.CompletedTask;
         }
 
-        public Task Stop(CancellationToken cancellationToken)
+        public async Task Stop(CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
             StopCount++;
+
+            if (StopInterruption is not null)
+            {
+                await StopInterruption(cancellationToken)
+                    .ConfigureAwait(continueOnCapturedContext: false);
+            }
+
             Snapshot = CreateSnapshot(ExternalProcessStatus.Stopped);
-            return Task.CompletedTask;
         }
 
         public void Dispose()

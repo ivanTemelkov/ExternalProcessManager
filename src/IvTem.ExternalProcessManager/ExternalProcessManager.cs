@@ -105,19 +105,28 @@ internal sealed partial class ExternalProcessManager : IExternalProcessManager, 
                 return;
             }
 
+            LogManagerStopping(Logger, Supervisors.Count);
+
+            try
+            {
+                foreach (ManagedProcessEntry entry in GetSupervisorEntries())
+                {
+                    await entry.Supervisor.Stop(cancellationToken)
+                        .ConfigureAwait(continueOnCapturedContext: false);
+
+                    RefreshSnapshot();
+                }
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                RefreshSnapshot();
+                LogManagerStopCanceled(Logger);
+                throw;
+            }
+
             IsRunning = false;
             ConfigurationChangeRegistration?.Dispose();
             ConfigurationChangeRegistration = null;
-            LogManagerStopping(Logger, Supervisors.Count);
-
-            foreach (ManagedProcessEntry entry in GetSupervisorEntries())
-            {
-                await entry.Supervisor.Stop(cancellationToken)
-                    .ConfigureAwait(continueOnCapturedContext: false);
-
-                RefreshSnapshot();
-            }
-
             RefreshSnapshot();
             LogManagerStopped(Logger);
         }
@@ -623,6 +632,9 @@ internal sealed partial class ExternalProcessManager : IExternalProcessManager, 
 
     [LoggerMessage(EventId = 1011, Level = LogLevel.Error, Message = "External process manager hot reload failed unexpectedly during configuration reconciliation.")]
     private static partial void LogConfigurationReloadFailed(ILogger logger, Exception exception);
+
+    [LoggerMessage(EventId = 1012, Level = LogLevel.Warning, Message = "External process manager stop was canceled before all supervised processes were stopped.")]
+    private static partial void LogManagerStopCanceled(ILogger logger);
 
     private sealed record ManagedProcessEntry(
         EffectiveExternalProcessConfiguration Configuration,

@@ -223,3 +223,10 @@ YYYY-MM-DD:
 - Verification: `dotnet test IvTem.ExternalProcessManager.slnx --filter SystemScheduledRestartTimerTests` succeeded with 3 passing tests; `dotnet test IvTem.ExternalProcessManager.slnx` succeeded with 107 passing tests; `dotnet build IvTem.ExternalProcessManager.slnx` succeeded with 0 warnings and 0 errors.
 - Follow-up: Continue with improvement Task 004.
 - Memory: Added decision for passing the factory logger into timer instances to keep the production timer internal while satisfying Sonar logger-type enforcement.
+
+2026-07-01:
+- Task: Improvements 004 - Harden stop cancellation state.
+- Change: Delayed publishing the manager as stopped until every supervisor stops successfully; canceled stops now refresh diagnostics, log warning event `1012`, and rethrow cancellation so callers can retry cleanup with a fresh token.
+- Verification: `dotnet test IvTem.ExternalProcessManager.slnx --filter CanceledStopKeepsManagerRunningAndCanBeRetried` succeeded; `dotnet test IvTem.ExternalProcessManager.slnx` succeeded with 108 passing tests; `dotnet build IvTem.ExternalProcessManager.slnx` succeeded with 0 warnings and 0 errors.
+- Follow-up: Continue with improvement Task 005.
+- Memory: Added decision for canceled manager stops preserving `IsRunning` and retrying the full supervisor stop pass.

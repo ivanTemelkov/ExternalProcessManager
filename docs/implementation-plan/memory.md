@@ -263,6 +263,11 @@ YYYY-MM-DD:
 - Reason: Timer instances are created internally by the factory, and Sonar rule `S6672` requires constructor-injected loggers to use the enclosing factory type while the timer still needs an observable callback failure boundary.
 - Alternatives considered: Injecting `ILogger<SystemScheduledRestartTimer>` into the factory; rejected because it violates the enforced Sonar logger-type rule. Exposing timer events publicly; rejected because diagnostics remain snapshot-based and logs are the intended historical signal.
 
+2026-07-01:
+- Decision: A canceled manager stop leaves `IsRunning` true, refreshes diagnostics, logs warning event `1012`, and retries the full supervisor stop pass on the next `StopAsync` call.
+- Reason: A partial stop can leave later aliases running, so manager diagnostics must not claim a completed shutdown while cleanup is incomplete.
+- Alternatives considered: Marking the manager stopped before cleanup or after the first canceled supervisor; rejected because both states can hide still-running supervised processes from host health views.
+
 ## Debugging Notes
 
 Record repeatable commands, flaky test notes, and process-control observations.
