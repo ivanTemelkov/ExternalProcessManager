@@ -117,7 +117,10 @@ public sealed class ExternalProcessManagerTests
         await manager.StartAsync();
         FakeSupervisor supervisor = Assert.Single(supervisorFactory.Supervisors);
 
+#pragma warning disable S6966
+        // This test covers the synchronous Dispose path.
         manager.Dispose();
+#pragma warning restore S6966
 
         Assert.Equal(1, supervisor.StopCount);
         Assert.True(supervisor.IsDisposed);

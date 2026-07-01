@@ -184,18 +184,18 @@ public sealed class ScheduledRestartCalculatorTests
     private static TimeZoneInfo CreateDaylightSavingTimeZone()
     {
         TimeZoneInfo.TransitionTime startTransition = TimeZoneInfo.TransitionTime.CreateFloatingDateRule(
-            new DateTime(1, 1, 1, 2, 0, 0),
+            new DateTime(1, 1, 1, 2, 0, 0, DateTimeKind.Unspecified),
             month: 3,
             week: 5,
             DayOfWeek.Sunday);
         TimeZoneInfo.TransitionTime endTransition = TimeZoneInfo.TransitionTime.CreateFloatingDateRule(
-            new DateTime(1, 1, 1, 3, 0, 0),
+            new DateTime(1, 1, 1, 3, 0, 0, DateTimeKind.Unspecified),
             month: 10,
             week: 5,
             DayOfWeek.Sunday);
         TimeZoneInfo.AdjustmentRule adjustmentRule = TimeZoneInfo.AdjustmentRule.CreateAdjustmentRule(
-            new DateTime(2026, 1, 1),
-            new DateTime(2026, 12, 31),
+            new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Unspecified),
+            new DateTime(2026, 12, 31, 0, 0, 0, DateTimeKind.Unspecified),
             TimeSpan.FromHours(1),
             startTransition,
             endTransition);

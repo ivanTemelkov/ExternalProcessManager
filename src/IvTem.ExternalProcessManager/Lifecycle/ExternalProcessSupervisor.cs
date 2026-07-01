@@ -363,6 +363,7 @@ internal sealed partial class ExternalProcessSupervisor : IExternalProcessSuperv
         }
         catch (OperationCanceledException) when (LifetimeCancellation.IsCancellationRequested)
         {
+            // Scheduled restart work is canceled when the supervisor is stopping or disposed.
         }
         finally
         {

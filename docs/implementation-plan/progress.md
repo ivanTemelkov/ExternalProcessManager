@@ -202,3 +202,10 @@ YYYY-MM-DD:
 - Verification: `dotnet build IvTem.ExternalProcessManager.slnx` succeeded with 0 warnings and 0 errors; `dotnet test IvTem.ExternalProcessManager.slnx` succeeded with 103 passing tests; `dotnet run --project samples/IvTem.ExternalProcessManager.SampleHost -- --SampleHost:RunSeconds=8` started the sample worker, reported diagnostics, and stopped gracefully.
 - Follow-up: None currently.
 - Memory: Added decision for the breaking seconds-based restart timing schema.
+
+2026-07-01:
+- Task: Improvements 001 - Add SonarAnalyzer.CSharp build enforcement.
+- Change: Added root `Directory.Build.props` with `SonarAnalyzer.CSharp` version `10.27.0.140913`, added `.editorconfig` analyzer policy to preserve project style for explicit `== false` negation and explicit loops, resolved newly enforced analyzer findings in library, tests, and samples, and split sample host helper types into namespaced files.
+- Verification: `dotnet build IvTem.ExternalProcessManager.slnx` succeeded with 0 warnings and 0 errors; `dotnet test IvTem.ExternalProcessManager.slnx` succeeded with 103 passing tests; analyzer/suppression scan found the expected package reference, narrow `.editorconfig` rule overrides, and one locally justified `S6966` pragma for the synchronous dispose test.
+- Follow-up: Continue with improvement Task 002.
+- Memory: Added decisions for SonarAnalyzer enforcement, preserving `== false`, preserving explicit loops, and the local sync-dispose test suppression.

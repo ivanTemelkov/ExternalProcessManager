@@ -233,6 +233,26 @@ YYYY-MM-DD:
 - Reason: Configuration should avoid host-facing `TimeSpan` string parsing and make the unit explicit in the option names while preserving internal `TimeSpan` use for lifecycle code.
 - Alternatives considered: Accepting the old `TimeSpan` keys as aliases; rejected because v1 can take a breaking schema cleanup before compatibility commitments.
 
+2026-07-01:
+- Decision: Enforce `SonarAnalyzer.CSharp` locally through root `Directory.Build.props` using version `10.27.0.140913`.
+- Reason: The improvement plan requires SonarAnalyzer to participate in local builds for the library, tests, and samples.
+- Alternatives considered: Adding the package to individual project files; rejected because a root props file keeps analyzer enforcement consistent and easier to maintain.
+
+2026-07-01:
+- Decision: Disable Sonar rule `S1125` in `.editorconfig` and keep the project convention of explicit boolean negation with `== false`.
+- Reason: The coding style intentionally prefers visible negation, and project style takes priority over the default Sonar style rule.
+- Alternatives considered: Rewriting negation to `!`; rejected because it conflicts with the documented project style.
+
+2026-07-01:
+- Decision: Disable Sonar rule `S3267` in `.editorconfig` and preserve explicit loops when they match surrounding code better than LINQ.
+- Reason: The rule is stylistic, and the coding style requires matching existing surrounding style over analyzer-preferred expression changes.
+- Alternatives considered: Rewriting loops to LINQ; rejected for spots where explicit lifecycle or collection-building loops read more clearly in the existing code.
+
+2026-07-01:
+- Decision: Keep a local `S6966` pragma in the manager synchronous disposal test.
+- Reason: The test intentionally calls `Dispose()` to verify the synchronous disposal path, so replacing it with `DisposeAsync()` would stop testing the behavior under test.
+- Alternatives considered: Converting the test to `DisposeAsync`; rejected because a separate async-dispose test already covers that path.
+
 ## Debugging Notes
 
 Record repeatable commands, flaky test notes, and process-control observations.

@@ -73,9 +73,11 @@ internal sealed class SystemScheduledRestartTimer : IScheduledRestartTimer
         }
         catch (OperationCanceledException)
         {
+            // Timer callbacks are canceled during lifecycle shutdown.
         }
         catch (ObjectDisposedException)
         {
+            // Timer callbacks can race with timer disposal.
         }
     }
 }

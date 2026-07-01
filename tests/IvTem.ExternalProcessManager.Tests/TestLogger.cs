@@ -31,14 +31,6 @@ internal sealed class TestLogger<T> : ILogger<T>
         });
     }
 
-    private sealed class TestLogScope : IDisposable
-    {
-        public static TestLogScope Instance { get; } = new();
-
-        public void Dispose()
-        {
-        }
-    }
 }
 
 internal sealed record TestLogEntry
@@ -50,4 +42,13 @@ internal sealed record TestLogEntry
     public required string Message { get; init; }
 
     public Exception? Exception { get; init; }
+}
+
+internal sealed class TestLogScope : IDisposable
+{
+    public static TestLogScope Instance { get; } = new();
+
+    public void Dispose()
+    {
+    }
 }

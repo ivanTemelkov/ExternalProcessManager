@@ -112,14 +112,14 @@ internal static class WindowsProcessCreation
     }
 
     [StructLayout(LayoutKind.Sequential)]
-    private readonly struct ProcessInformation
+    private struct ProcessInformation
     {
-        public IntPtr ProcessHandle { get; init; }
+        public IntPtr ProcessHandle;
 
-        public IntPtr ThreadHandle { get; init; }
+        public IntPtr ThreadHandle;
 
-        public int ProcessId { get; init; }
+        public int ProcessId;
 
-        private readonly int ThreadId;
+        private int ThreadId;
     }
 }

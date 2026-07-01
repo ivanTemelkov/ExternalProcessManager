@@ -111,7 +111,10 @@ static async Task<int> SpawnChild(
     }) ?? throw new InvalidOperationException("Child helper process did not start.");
 
     if (childPidFile is not null)
-        File.WriteAllText(childPidFile, child.Id.ToString(CultureInfo.InvariantCulture));
+    {
+        await File.WriteAllTextAsync(childPidFile, child.Id.ToString(CultureInfo.InvariantCulture))
+            .ConfigureAwait(continueOnCapturedContext: false);
+    }
 
     if (ignoreCtrlBreak)
         return await IgnoreCtrlBreak(options).ConfigureAwait(continueOnCapturedContext: false);

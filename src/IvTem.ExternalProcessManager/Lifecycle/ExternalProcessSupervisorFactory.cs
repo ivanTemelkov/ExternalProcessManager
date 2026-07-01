@@ -12,21 +12,21 @@ internal sealed class ExternalProcessSupervisorFactory : IExternalProcessSupervi
         IRestartDelay restartDelay,
         ILocalClock clock,
         IScheduledRestartTimerFactory scheduledRestartTimerFactory,
-        ILogger<ExternalProcessSupervisor> logger)
+        ILoggerFactory loggerFactory)
     {
         ArgumentNullException.ThrowIfNull(launcher);
         ArgumentNullException.ThrowIfNull(cleanup);
         ArgumentNullException.ThrowIfNull(restartDelay);
         ArgumentNullException.ThrowIfNull(clock);
         ArgumentNullException.ThrowIfNull(scheduledRestartTimerFactory);
-        ArgumentNullException.ThrowIfNull(logger);
+        ArgumentNullException.ThrowIfNull(loggerFactory);
 
         Launcher = launcher;
         Cleanup = cleanup;
         RestartDelay = restartDelay;
         Clock = clock;
         ScheduledRestartTimerFactory = scheduledRestartTimerFactory;
-        Logger = logger;
+        Logger = loggerFactory.CreateLogger<ExternalProcessSupervisor>();
     }
 
     private IProcessLauncher Launcher { get; }

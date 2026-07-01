@@ -123,7 +123,7 @@ internal sealed class ExternalProcessConfigurationValidator
                 ArgumentMode = GetArgumentMode(process),
                 Arguments = GetArguments(process),
                 ArgumentList = GetArgumentList(process),
-                WorkingDirectory = NormalizeOptionalValue(process.WorkingDirectory.Value),
+                WorkingDirectory = NormalizeRequiredValue(process.WorkingDirectory.Value),
                 Environment = NormalizeEnvironment(process.Environment),
                 Restart = restart,
                 ScheduledRestarts = scheduledRestarts,
@@ -488,14 +488,6 @@ internal sealed class ExternalProcessConfigurationValidator
     }
 
     private static string? NormalizeRequiredValue(string? value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-            return null;
-
-        return value.Trim();
-    }
-
-    private static string? NormalizeOptionalValue(string? value)
     {
         if (string.IsNullOrWhiteSpace(value))
             return null;

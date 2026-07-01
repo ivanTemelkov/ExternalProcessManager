@@ -1,0 +1,9 @@
+root = true
+
+[*.cs]
+# Project style intentionally prefers explicit boolean comparison for negation
+# because it is easier to see in review than the unary ! operator.
+dotnet_diagnostic.S1125.severity = none
+
+# Prefer the surrounding code's explicit loops when they are clearer than LINQ.
+dotnet_diagnostic.S3267.severity = none
