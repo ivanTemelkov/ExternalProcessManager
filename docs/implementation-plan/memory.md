@@ -278,6 +278,11 @@ YYYY-MM-DD:
 - Reason: A failed launch usually indicates a configuration, executable, permission, or platform problem rather than a running process crash, and v1 restart policy is scoped to observed process exits.
 - Alternatives considered: Retrying launch failures through the normal restart backoff path; rejected for v1 because it would blur launch errors with process exits and could hide actionable configuration failures behind repeated retries.
 
+2026-07-01:
+- Decision: No new memory entry is needed for improvement Task 007 final verification.
+- Reason: The final verification pass confirmed the existing improvement decisions and surfaced no new requirements, gotchas, or debugging notes.
+- Alternatives considered: Adding a task-specific gotcha or debugging note; rejected because there was no new behavior to preserve beyond the progress verification record.
+
 ## Debugging Notes
 
 Record repeatable commands, flaky test notes, and process-control observations.

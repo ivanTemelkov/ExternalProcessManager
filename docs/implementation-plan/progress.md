@@ -244,3 +244,10 @@ YYYY-MM-DD:
 - Verification: `dotnet test IvTem.ExternalProcessManager.slnx --filter LaunchFailureTransitionsToFaultedWithoutRestartDelay` succeeded; `dotnet test IvTem.ExternalProcessManager.slnx` succeeded with 109 passing tests; `dotnet build IvTem.ExternalProcessManager.slnx` succeeded with 0 warnings and 0 errors.
 - Follow-up: Continue with improvement Task 007.
 - Memory: Added decision for the v1 no-retry launch failure policy.
+
+2026-07-01:
+- Task: Improvements 007 - Run final improvement verification.
+- Change: Confirmed improvement Tasks 001-006 are implemented and committed; reviewed improvement progress and memory notes; ran the full build, full test suite, sample host smoke test, analyzer/suppression search, stale-status search, and direct logging sink search.
+- Verification: `dotnet build IvTem.ExternalProcessManager.slnx` succeeded with 0 warnings and 0 errors; `dotnet test IvTem.ExternalProcessManager.slnx` succeeded with 109 passing tests; `dotnet run --project samples/IvTem.ExternalProcessManager.SampleHost -- --SampleHost:RunSeconds=8` started the sample worker, reported running diagnostics, and stopped it gracefully; `rg "TODO|FIXME|Needs Review|Blocked|SuppressMessage|NoWarn" docs src tests samples` returned only status-legend and task-instruction references; `rg "Console\.|File\.|EventLog|Telemetry|Trace\." src/IvTem.ExternalProcessManager -n` returned no direct logging sinks.
+- Follow-up: Improvement batch is ready for review.
+- Memory: No new memory entry needed; final verification introduced no new requirements, gotchas, or implementation decisions.
