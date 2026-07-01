@@ -268,6 +268,11 @@ YYYY-MM-DD:
 - Reason: A partial stop can leave later aliases running, so manager diagnostics must not claim a completed shutdown while cleanup is incomplete.
 - Alternatives considered: Marking the manager stopped before cleanup or after the first canceled supervisor; rejected because both states can hide still-running supervised processes from host health views.
 
+2026-07-01:
+- Decision: Keep v1 schedule-only hot reload behavior as supervisor replacement and process restart, rather than in-place timer rescheduling.
+- Reason: The existing equivalence comparison already treats schedule changes as effective configuration changes, replacement reuses the established lifecycle path, and diagnostics naturally come from the replacement supervisor's validated schedule state.
+- Alternatives considered: Non-disruptive in-place schedule rescheduling; deferred because it would add a second scheduler update path and more lifecycle concurrency surface for a v1 follow-up.
+
 ## Debugging Notes
 
 Record repeatable commands, flaky test notes, and process-control observations.

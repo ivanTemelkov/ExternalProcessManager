@@ -230,3 +230,10 @@ YYYY-MM-DD:
 - Verification: `dotnet test IvTem.ExternalProcessManager.slnx --filter CanceledStopKeepsManagerRunningAndCanBeRetried` succeeded; `dotnet test IvTem.ExternalProcessManager.slnx` succeeded with 108 passing tests; `dotnet build IvTem.ExternalProcessManager.slnx` succeeded with 0 warnings and 0 errors.
 - Follow-up: Continue with improvement Task 005.
 - Memory: Added decision for canceled manager stops preserving `IsRunning` and retrying the full supervisor stop pass.
+
+2026-07-01:
+- Task: Improvements 005 - Align schedule-only reload policy.
+- Change: Documented that v1 applies valid schedule-only hot reload changes by replacing the alias supervisor and restarting the process, with diagnostics reflecting the replacement supervisor's next scheduled restart.
+- Verification: Confirmed `ExternalProcessManager.AreEquivalent` includes scheduled restart differences and `ExternalProcessManagerTests.ReloadScheduleOnlyChangeReplacesSupervisorWithNewSchedule` asserts replacement behavior; `dotnet test IvTem.ExternalProcessManager.slnx` succeeded with 108 passing tests; `dotnet build IvTem.ExternalProcessManager.slnx` succeeded with 0 warnings and 0 errors.
+- Follow-up: Continue with improvement Task 006.
+- Memory: Added decision for keeping the simpler v1 schedule-only reload replacement behavior.

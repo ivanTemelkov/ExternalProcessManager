@@ -67,8 +67,9 @@ If the process is already stopped:
 When schedules change through hot reload:
 
 - changed process configuration causes the process to restart.
-- changed schedule-only configuration should also refresh the scheduler.
-- next scheduled restart in diagnostics should reflect the new effective schedule.
+- changed schedule-only configuration also restarts the alias in v1.
+- v1 applies a valid schedule-only change by replacing the alias supervisor, then starting the replacement with the new effective schedule.
+- diagnostics then reflect the replacement supervisor's new next scheduled restart.
 
 Invalid schedule changes follow the best-effort hot reload rules:
 
