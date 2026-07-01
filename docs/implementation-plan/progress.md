@@ -237,3 +237,10 @@ YYYY-MM-DD:
 - Verification: Confirmed `ExternalProcessManager.AreEquivalent` includes scheduled restart differences and `ExternalProcessManagerTests.ReloadScheduleOnlyChangeReplacesSupervisorWithNewSchedule` asserts replacement behavior; `dotnet test IvTem.ExternalProcessManager.slnx` succeeded with 108 passing tests; `dotnet build IvTem.ExternalProcessManager.slnx` succeeded with 0 warnings and 0 errors.
 - Follow-up: Continue with improvement Task 006.
 - Memory: Added decision for keeping the simpler v1 schedule-only reload replacement behavior.
+
+2026-07-01:
+- Task: Improvements 006 - Define launch failure policy.
+- Change: Documented the v1 launch failure policy and added a supervisor test that verifies launch failures move diagnostics to `Faulted`, set `LastError`, do not increment `RestartCount`, and do not request restart backoff.
+- Verification: `dotnet test IvTem.ExternalProcessManager.slnx --filter LaunchFailureTransitionsToFaultedWithoutRestartDelay` succeeded; `dotnet test IvTem.ExternalProcessManager.slnx` succeeded with 109 passing tests; `dotnet build IvTem.ExternalProcessManager.slnx` succeeded with 0 warnings and 0 errors.
+- Follow-up: Continue with improvement Task 007.
+- Memory: Added decision for the v1 no-retry launch failure policy.

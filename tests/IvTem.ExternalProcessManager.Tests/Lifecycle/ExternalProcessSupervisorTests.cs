@@ -29,6 +29,33 @@ public sealed class ExternalProcessSupervisorTests
     }
 
     [Fact]
+    public async Task LaunchFailureTransitionsToFaultedWithoutRestartDelay()
+    {
+        const string launchError = "The configured process could not be started.";
+
+        FakeProcessLauncher launcher = new()
+        {
+            LaunchFailure = new InvalidOperationException(launchError),
+        };
+        FakeProcessCleanup cleanup = new();
+        ImmediateRestartDelay restartDelay = new();
+        FakeLocalClock clock = new();
+        FakeScheduledRestartTimerFactory timerFactory = new();
+        TestLogger<ExternalProcessSupervisor> logger = new();
+        using ExternalProcessSupervisor supervisor = new(CreateConfiguration(), launcher, cleanup, restartDelay, clock, timerFactory, logger);
+
+        await supervisor.Start(CancellationToken.None);
+
+        ExternalProcessSnapshot snapshot = supervisor.GetSnapshot();
+        Assert.Equal(ExternalProcessStatus.Faulted, snapshot.Status);
+        Assert.Null(snapshot.ProcessId);
+        Assert.Equal(launchError, snapshot.LastError);
+        Assert.Equal(0, snapshot.RestartCount);
+        Assert.Empty(restartDelay.RequestedDelays);
+        Assert.Empty(launcher.LaunchedHandles);
+    }
+
+    [Fact]
     public async Task ConcurrentStartDoesNotLaunchDuplicateProcess()
     {
         FakeProcessLauncher launcher = new();
@@ -435,6 +462,8 @@ public sealed class ExternalProcessSupervisorTests
     {
         private int NextProcessId { get; set; } = 1000;
 
+        public Exception? LaunchFailure { get; init; }
+
         public List<FakeProcessHandle> LaunchedHandles { get; } = [];
 
         public FakeProcessHandle? LastHandle => LaunchedHandles.Count == 0
@@ -444,6 +473,9 @@ public sealed class ExternalProcessSupervisorTests
         public IProcessHandle Launch(EffectiveExternalProcessConfiguration configuration)
         {
             ArgumentNullException.ThrowIfNull(configuration);
+
+            if (LaunchFailure is not null)
+                throw LaunchFailure;
 
             FakeProcessHandle handle = new(NextProcessId++, DateTimeOffset.UtcNow);
             LaunchedHandles.Add(handle);

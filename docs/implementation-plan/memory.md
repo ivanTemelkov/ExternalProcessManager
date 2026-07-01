@@ -273,6 +273,11 @@ YYYY-MM-DD:
 - Reason: The existing equivalence comparison already treats schedule changes as effective configuration changes, replacement reuses the established lifecycle path, and diagnostics naturally come from the replacement supervisor's validated schedule state.
 - Alternatives considered: Non-disruptive in-place schedule rescheduling; deferred because it would add a second scheduler update path and more lifecycle concurrency surface for a v1 follow-up.
 
+2026-07-01:
+- Decision: Keep launch failures as terminal `Faulted` supervisor state for v1, with diagnostics `LastError` set and no automatic retry through restart backoff.
+- Reason: A failed launch usually indicates a configuration, executable, permission, or platform problem rather than a running process crash, and v1 restart policy is scoped to observed process exits.
+- Alternatives considered: Retrying launch failures through the normal restart backoff path; rejected for v1 because it would blur launch errors with process exits and could hide actionable configuration failures behind repeated retries.
+
 ## Debugging Notes
 
 Record repeatable commands, flaky test notes, and process-control observations.

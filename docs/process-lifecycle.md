@@ -36,6 +36,12 @@ The Windows launcher should:
 - launch the process in a way that allows Windows console control events for graceful shutdown.
 - track process ID and start time.
 
+## Launch Failure
+
+If a validated process cannot be launched, the alias moves to `Faulted`, diagnostics set `LastError`, and no process handle is retained.
+
+Launch failures are not treated as process exits in v1. They do not increment `RestartCount`, do not enter `RestartPending`, and do not use restart backoff. Retrying launch failures is out of scope for v1 unless a later task changes the policy.
+
 ## Exit Handling
 
 When a process exits:
