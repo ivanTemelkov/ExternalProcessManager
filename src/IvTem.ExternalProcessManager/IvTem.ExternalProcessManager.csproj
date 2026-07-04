@@ -12,7 +12,7 @@
 
   <PropertyGroup>
     <PackageId>IvTem.ExternalProcessManager</PackageId>
-    <Version>0.1.0-preview.2</Version>
+    <Version>0.1.0</Version>
     <Authors>Ivan Temelkov</Authors>
     <Company>Ivan Temelkov</Company>
     <Product>IvTem.ExternalProcessManager</Product>
@@ -32,7 +32,7 @@
 
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <PackageReleaseNotes>Initial preview release of ExternalProcessManager.</PackageReleaseNotes>
+    <PackageReleaseNotes>Initial release of ExternalProcessManager.</PackageReleaseNotes>
     <Copyright>Copyright © 2026 Ivan Temelkov</Copyright>
   </PropertyGroup>
 
