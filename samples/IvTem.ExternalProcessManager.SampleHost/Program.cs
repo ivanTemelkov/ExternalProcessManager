@@ -27,9 +27,13 @@ builder.Logging.AddSimpleConsole(options =>
     options.TimestampFormat = "HH:mm:ss ";
 });
 
-string workerPath = SampleWorkerPath.Resolve();
+string workerPath = SampleWorkerPath.Resolve("IvTem.ExternalProcessManager.SampleWorker");
+string failingWorkerPath = SampleWorkerPath.Resolve("IvTem.ExternalProcessManager.FailingSampleWorker");
 string workerWorkingDirectory = Path.GetDirectoryName(workerPath) is string directory
     ? directory
+    : AppContext.BaseDirectory;
+string failingWorkerWorkingDirectory = Path.GetDirectoryName(failingWorkerPath) is string failingWorkerDirectory
+    ? failingWorkerDirectory
     : AppContext.BaseDirectory;
 
 builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
@@ -40,6 +44,8 @@ builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>(Stri
     ["ExternalProcessManager:Processes:0:ArgumentList:1"] = "sample-worker",
     ["ExternalProcessManager:Processes:0:ArgumentList:2"] = "--heartbeat-seconds",
     ["ExternalProcessManager:Processes:0:ArgumentList:3"] = "1",
+    ["ExternalProcessManager:Processes:1:FileName"] = failingWorkerPath,
+    ["ExternalProcessManager:Processes:1:WorkingDirectory"] = failingWorkerWorkingDirectory,
 });
 
 builder.Services.AddExternalProcessManager(

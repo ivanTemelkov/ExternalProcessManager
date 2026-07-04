@@ -2,12 +2,10 @@ namespace IvTem.ExternalProcessManager.SampleHost;
 
 internal static class SampleWorkerPath
 {
-    private const string WorkerProjectName = "IvTem.ExternalProcessManager.SampleWorker";
-    private const string WorkerExecutableName = $"{WorkerProjectName}.exe";
-
-    public static string Resolve()
+    public static string Resolve(string workerProjectName)
     {
-        string publishedWorkerPath = Path.Combine(AppContext.BaseDirectory, WorkerExecutableName);
+        string workerExecutableName = $"{workerProjectName}.exe";
+        string publishedWorkerPath = Path.Combine(AppContext.BaseDirectory, workerExecutableName);
 
         if (IsPublishDirectory()
             && File.Exists(publishedWorkerPath))
@@ -15,7 +13,7 @@ internal static class SampleWorkerPath
             return publishedWorkerPath;
         }
 
-        string workerPath = ResolveBuildOutputPath();
+        string workerPath = ResolveBuildOutputPath(workerProjectName, workerExecutableName);
 
         if (File.Exists(workerPath) == false)
             throw new FileNotFoundException("Build or publish the sample worker before running the sample host.", workerPath);
@@ -23,31 +21,33 @@ internal static class SampleWorkerPath
         return workerPath;
     }
 
-    private static string ResolveBuildOutputPath()
+    private static string ResolveBuildOutputPath(
+        string workerProjectName,
+        string workerExecutableName)
     {
-        DirectoryInfo samplesDirectory = FindSamplesDirectory();
+        DirectoryInfo samplesDirectory = FindSamplesDirectory(workerProjectName);
         DirectoryInfo outputDirectory = new(AppContext.BaseDirectory);
         string configurationName = FindConfigurationName(outputDirectory);
         string workerOutputDirectory = Path.Combine(
             samplesDirectory.FullName,
-            WorkerProjectName,
+            workerProjectName,
             "bin",
             configurationName,
             "net10.0");
         string runtimeOutputDirectory = Path.Combine(workerOutputDirectory, "win-x64");
 
-        return File.Exists(Path.Combine(runtimeOutputDirectory, WorkerExecutableName))
-            ? Path.Combine(runtimeOutputDirectory, WorkerExecutableName)
-            : Path.Combine(workerOutputDirectory, WorkerExecutableName);
+        return File.Exists(Path.Combine(runtimeOutputDirectory, workerExecutableName))
+            ? Path.Combine(runtimeOutputDirectory, workerExecutableName)
+            : Path.Combine(workerOutputDirectory, workerExecutableName);
     }
 
-    private static DirectoryInfo FindSamplesDirectory()
+    private static DirectoryInfo FindSamplesDirectory(string workerProjectName)
     {
         DirectoryInfo? currentDirectory = new(AppContext.BaseDirectory);
 
         while (currentDirectory is not null)
         {
-            string workerProjectDirectory = Path.Combine(currentDirectory.FullName, WorkerProjectName);
+            string workerProjectDirectory = Path.Combine(currentDirectory.FullName, workerProjectName);
 
             if (Directory.Exists(workerProjectDirectory))
                 return currentDirectory;

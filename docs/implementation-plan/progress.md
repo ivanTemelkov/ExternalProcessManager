@@ -251,3 +251,10 @@ YYYY-MM-DD:
 - Verification: `dotnet build IvTem.ExternalProcessManager.slnx` succeeded with 0 warnings and 0 errors; `dotnet test IvTem.ExternalProcessManager.slnx` succeeded with 109 passing tests; `dotnet run --project samples/IvTem.ExternalProcessManager.SampleHost -- --SampleHost:RunSeconds=8` started the sample worker, reported running diagnostics, and stopped it gracefully; `rg "TODO|FIXME|Needs Review|Blocked|SuppressMessage|NoWarn" docs src tests samples` returned only status-legend and task-instruction references; `rg "Console\.|File\.|EventLog|Telemetry|Trace\." src/IvTem.ExternalProcessManager -n` returned no direct logging sinks.
 - Follow-up: Improvement batch is ready for review.
 - Memory: No new memory entry needed; final verification introduced no new requirements, gotchas, or implementation decisions.
+
+2026-07-01:
+- Task: Task 19 sample host application follow-up - Add failing worker backoff stress sample.
+- Change: Added `IvTem.ExternalProcessManager.FailingSampleWorker`, configured the sample host to supervise it as `failing-sample-worker`, generalized worker path resolution for multiple sample workers, copied the failing worker during host publish, and documented the backoff stress behavior.
+- Verification: `dotnet build IvTem.ExternalProcessManager.slnx` succeeded with 0 warnings and 0 errors; `dotnet test IvTem.ExternalProcessManager.slnx` succeeded with 109 passing tests; `dotnet run --project samples/IvTem.ExternalProcessManager.SampleHost -- --SampleHost:RunSeconds=8` started the normal worker, repeatedly restarted the failing worker after exit code `42`, and showed backoff delays of 1, 2, 4, and 8 seconds.
+- Follow-up: None currently.
+- Memory: No new memory entry needed; this extends the existing sample-worker resolution and publish-copy decisions without adding new runtime requirements.

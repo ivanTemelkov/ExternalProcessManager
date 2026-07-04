@@ -20,6 +20,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\IvTem.ExternalProcessManager\IvTem.ExternalProcessManager.csproj" />
+    <ProjectReference Include="..\IvTem.ExternalProcessManager.FailingSampleWorker\IvTem.ExternalProcessManager.FailingSampleWorker.csproj" ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\IvTem.ExternalProcessManager.SampleWorker\IvTem.ExternalProcessManager.SampleWorker.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
@@ -32,8 +33,13 @@
       Projects="..\IvTem.ExternalProcessManager.SampleWorker\IvTem.ExternalProcessManager.SampleWorker.csproj"
       Targets="Publish"
       Properties="Configuration=$(Configuration);RuntimeIdentifier=$(RuntimeIdentifier);PublishAot=$(PublishAot)" />
+    <MSBuild
+      Projects="..\IvTem.ExternalProcessManager.FailingSampleWorker\IvTem.ExternalProcessManager.FailingSampleWorker.csproj"
+      Targets="Publish"
+      Properties="Configuration=$(Configuration);RuntimeIdentifier=$(RuntimeIdentifier);PublishAot=$(PublishAot)" />
     <ItemGroup>
       <PublishedSampleWorker Include="..\IvTem.ExternalProcessManager.SampleWorker\bin\$(Configuration)\$(TargetFramework)\$(RuntimeIdentifier)\publish\IvTem.ExternalProcessManager.SampleWorker.exe" />
+      <PublishedSampleWorker Include="..\IvTem.ExternalProcessManager.FailingSampleWorker\bin\$(Configuration)\$(TargetFramework)\$(RuntimeIdentifier)\publish\IvTem.ExternalProcessManager.FailingSampleWorker.exe" />
     </ItemGroup>
     <Copy
       SourceFiles="@(PublishedSampleWorker)"
