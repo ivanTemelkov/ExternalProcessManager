@@ -32,7 +32,7 @@ jobs:
         run: dotnet test --configuration Release --no-build
 
       - name: Pack
-        run: dotnet pack --configuration Release --no-build --output ./artifacts
+        run: dotnet pack .\src\IvTem.ExternalProcessManager\IvTem.ExternalProcessManager.csproj --configuration Release --no-build --output .\artifacts
 
       - name: NuGet login
         uses: NuGet/login@v1
@@ -41,4 +41,17 @@ jobs:
           user: IvanTemelkov
 
       - name: Publish package
-        run: dotnet nuget push "./artifacts/*.nupkg" --api-key "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" --source "https://api.nuget.org/v3/index.json" --skip-duplicate
+        shell: pwsh
+        run: |
+          $package = Get-ChildItem -Path .\artifacts -Filter "IvTem.ExternalProcessManager.*.nupkg" |
+            Where-Object { $_.Name -notlike "*.symbols.nupkg" } |
+            Select-Object -First 1
+
+          if (-not $package) {
+            throw "Package not found in artifacts folder."
+          }
+
+          dotnet nuget push $package.FullName `
+            --api-key "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" `
+            --source "https://api.nuget.org/v3/index.json" `
+            --skip-duplicate
