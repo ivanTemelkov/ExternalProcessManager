@@ -10,6 +10,39 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <PackageId>IvTem.ExternalProcessManager</PackageId>
+    <Version>0.1.0-preview.1</Version>
+    <Authors>Ivan Temelkov</Authors>
+    <Company>Ivan Temelkov</Company>
+    <Product>IvTem.ExternalProcessManager</Product>
+    <Title>External Process Manager for .NET</Title>
+
+    <Description>
+      A configuration-driven .NET library for supervising external Windows processes from host applications, with restart policies, scheduled restarts, graceful shutdown, diagnostics, and Generic Host integration.
+    </Description>
+
+    <PackageTags>
+      dotnet;net10;process;process-manager;external-process;windows;generic-host;hosted-service;configuration;restart-policy;native-aot;trimming
+    </PackageTags>
+
+    <PackageProjectUrl>https://github.com/ivanTemelkov/ExternalProcessManager</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/ivanTemelkov/ExternalProcessManager</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageReleaseNotes>Initial preview release of ExternalProcessManager.</PackageReleaseNotes>
+    <Copyright>Copyright © 2026 Ivan Temelkov</Copyright>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\..\README.md"
+          Pack="true"
+          PackagePath="\" />
+  </ItemGroup>
+
+
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.0" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.0" />
